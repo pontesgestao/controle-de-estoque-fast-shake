@@ -32,6 +32,19 @@ window.CATEGORIAS = [
     ],
   },
   {
+    nome: 'Calda de Sorvete – Milk Shake',
+    itens: [
+      { nome: 'Uva', medida: 'un' },
+      { nome: 'Leite condensado', medida: 'un' },
+      { nome: 'Chocolate (Brigatta)', medida: 'un' },
+      { nome: 'Leitinho', medida: 'un' },
+      { nome: 'Morango', medida: 'un' },
+      { nome: 'Frozen', medida: 'un' },
+      { nome: 'Maracujá', medida: 'un' },
+      { nome: 'Baunilha', medida: 'un' },
+    ],
+  },
+  {
     nome: 'Copos',
     itens: [
       { nome: 'Copo 150 ml normal', medida: 'pacote' },

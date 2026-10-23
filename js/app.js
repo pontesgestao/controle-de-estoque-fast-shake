@@ -153,7 +153,7 @@
     return `
       <header class="topo">
         <div class="topo-linha">
-          <div class="marca"><span>FAST</span><span class="tag-azul">SHAKE</span><span>· ${esc(estado.unidade)}</span></div>
+          <div class="marca"><span>FAST</span><span class="tag-azul">SHAKE</span><span class="loja">· ${esc(estado.unidade)}</span></div>
           <div class="porcentagem" id="pct">${p}%</div>
         </div>
         <div class="barra" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}" id="barra"><div style="width:${p}%"></div></div>
@@ -228,7 +228,7 @@
       <footer class="rodape">
         <div class="rodape-interno">
           <button class="btn btn-secundario" id="voltar">${ci === 0 ? 'Início' : '← Anterior'}</button>
-          <button class="btn btn-primario" id="avancar">${ultima ? 'Revisar contagem →' : 'Próxima categoria →'}</button>
+          <button class="btn btn-primario" id="avancar">${ultima ? 'Revisar →' : 'Próxima →'}</button>
           <p class="falta" id="falta"></p>
         </div>
       </footer>`;
