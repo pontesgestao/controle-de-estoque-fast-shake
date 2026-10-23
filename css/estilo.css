@@ -168,6 +168,9 @@ button { cursor: pointer; }
 .sucesso h1 { color: var(--laranja); font-size: 1.8rem; }
 .sucesso p { margin: 0; color: var(--texto-suave); }
 .sucesso .logo { width: 180px; }
+.sucesso .compartilhar { width: 100%; text-align: center; }
+.btn-whatsapp { background: #1DA851; color: #fff; box-shadow: 0 4px 0 #137A3A; }
+.btn-whatsapp:active { box-shadow: 0 2px 0 #137A3A; }
 
 .carregando { display: inline-block; width: 18px; height: 18px; border: 3px solid rgba(255,255,255,.5); border-top-color: #fff; border-radius: 50%; animation: gira .8s linear infinite; }
 @keyframes gira { to { transform: rotate(360deg); } }

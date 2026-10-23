@@ -3,6 +3,7 @@
 
   const CHAVE_RASCUNHO = 'fastshake-contagem-v1';
   const CHAVE_PERFIL = 'fastshake-perfil-v1';
+  const CHAVE_ULTIMA = 'fastshake-ultima-v1';
   const app = document.getElementById('app');
 
   // Cada item ganha um id pelo nome (categoria + produto), assim incluir ou
@@ -69,6 +70,7 @@
   function telaInicio() {
     const perfil = carregar(CHAVE_PERFIL) || {};
     const temRascunho = estado && estado.valores && Object.keys(estado.valores).length > 0;
+    const ultima = carregar(CHAVE_ULTIMA);
     const unidades = (window.CONFIG.UNIDADES || []).filter(Boolean);
 
     const campoUnidade = unidades.length
@@ -105,7 +107,12 @@
             <p class="aviso aviso-erro" id="erro-inicio" hidden></p>
             <button class="btn btn-primario btn-bloco" type="submit">Iniciar contagem</button>
           </form>`}
+        ${ultima ? `
+          <button class="btn btn-texto" id="ver-ultima">Compartilhar a última contagem enviada
+            (${esc(new Date(ultima.enviadoEm).toLocaleDateString('pt-BR'))})</button>` : ''}
       </section>`;
+
+    if (ultima) document.getElementById('ver-ultima').onclick = () => telaSucesso(ultima);
 
     if (temRascunho) {
       document.getElementById('continuar').onclick = () => telaContagem(estado.passo || 0);
@@ -387,6 +394,7 @@
     document.getElementById('obs').oninput = (e) => { estado.observacoes = e.target.value; salvar(); };
     document.getElementById('voltar').onclick = () => telaContagem(categorias.length - 1);
     document.getElementById('enviar').onclick = enviar;
+    window.PDFContagem.carregarLibs().catch(() => {});
     window.scrollTo(0, 0);
   }
 
@@ -415,9 +423,9 @@
       const json = await resposta.json();
       if (!json.ok) throw new Error(json.erro || 'Erro na planilha');
       apagar(CHAVE_RASCUNHO);
-      const enviado = estado;
+      guardar(CHAVE_ULTIMA, dados);
       estado = null;
-      telaSucesso(enviado, dados.enviadoEm);
+      telaSucesso(dados);
     } catch (err) {
       botao.disabled = false;
       botao.textContent = 'Tentar enviar de novo';
@@ -425,20 +433,47 @@
     }
   }
 
-  function telaSucesso(enviado, quando) {
-    const data = new Date(quando).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  function telaSucesso(dados) {
+    const data = new Date(dados.enviadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
     app.innerHTML = `
       <section class="sucesso">
         <img class="logo" src="img/logo.png" alt="Fast Shake">
         <div class="selo" aria-hidden="true">✓</div>
         <h1>Contagem enviada!</h1>
-        <p><strong>${esc(enviado.unidade)}</strong> · ${esc(enviado.responsavel)}<br>${data}</p>
-        <p>Obrigado! Pode fechar esta página.</p>
+        <p><strong>${esc(dados.unidade)}</strong> · ${esc(dados.responsavel)}<br>${data}</p>
+        <div class="cartao pilha compartilhar">
+          <button class="btn btn-whatsapp btn-bloco" id="whatsapp" disabled>
+            <span class="carregando"></span> Preparando PDF…
+          </button>
+          <button class="btn btn-texto" id="baixar" hidden>Só baixar o PDF</button>
+          <p class="aviso" id="status-pdf">Envie o PDF da contagem pelo WhatsApp.</p>
+        </div>
         <button class="btn btn-secundario" id="nova">Fazer nova contagem</button>
       </section>`;
     document.getElementById('nova').onclick = telaInicio;
     window.scrollTo(0, 0);
+
+    // O PDF é gerado antes do toque: o celular só abre o menu de compartilhar
+    // se o arquivo já estiver pronto no momento do clique.
+    const botao = document.getElementById('whatsapp');
+    const baixar = document.getElementById('baixar');
+    const status = document.getElementById('status-pdf');
+    window.PDFContagem.gerar(dados).then((arquivo) => {
+      botao.disabled = false;
+      botao.innerHTML = `${ICONE_WHATSAPP} Compartilhar no WhatsApp`;
+      baixar.hidden = false;
+      botao.onclick = async () => {
+        const r = await window.PDFContagem.compartilhar(arquivo, dados);
+        if (r === 'baixado') status.textContent = 'PDF baixado. Anexe o arquivo na conversa do WhatsApp que abriu.';
+      };
+      baixar.onclick = () => window.PDFContagem.baixar(arquivo);
+    }).catch(() => {
+      botao.innerHTML = 'Não foi possível gerar o PDF';
+      status.innerHTML = '<span class="aviso-erro">Verifique a internet e toque em "Compartilhar a última contagem" na tela inicial. A contagem já está na planilha.</span>';
+    });
   }
+
+  const ICONE_WHATSAPP = '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.4.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3z"/></svg>';
 
   // Avisa antes de fechar a página no meio de um envio não concluído.
   window.addEventListener('beforeunload', (e) => {

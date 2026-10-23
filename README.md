@@ -7,6 +7,7 @@ App de contagem de estoque para os gerentes das unidades. Funciona no navegador 
 - A porcentagem no topo mostra quanto da contagem já foi feito.
 - O progresso fica salvo no aparelho: se o celular travar ou a página fechar, a contagem continua de onde parou.
 - No final, o gerente revisa tudo e envia. **Os resultados vão para uma planilha Google que só você acessa.**
+- Depois do envio, o gerente pode compartilhar um **PDF da contagem pelo WhatsApp** (com data, loja e nome de quem preencheu).
 
 ## Como os resultados chegam até você
 
@@ -62,6 +63,7 @@ css/estilo.css        identidade visual (laranja #ED4400 e azul #273393 da marca
 js/config.js          endereço da planilha e lista de unidades
 js/produtos.js        categorias e produtos
 js/app.js             passo a passo, progresso e envio
+js/pdf.js             PDF da contagem e compartilhamento no WhatsApp
 apps-script/Codigo.gs código que grava na planilha
 img/                  logo e ícones
 ```
