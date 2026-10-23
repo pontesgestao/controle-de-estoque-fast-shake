@@ -5,10 +5,11 @@
   const CHAVE_PERFIL = 'fastshake-perfil-v1';
   const app = document.getElementById('app');
 
-  // Cada item ganha um id estável (categoria + produto) para guardar o valor.
-  const categorias = window.CATEGORIAS.map((cat, ci) => ({
+  // Cada item ganha um id pelo nome (categoria + produto), assim incluir ou
+  // reordenar produtos não embaralha uma contagem que já estava em andamento.
+  const categorias = window.CATEGORIAS.map((cat) => ({
     nome: cat.nome,
-    itens: cat.itens.map((item, ii) => ({ ...item, id: ci + '-' + ii })),
+    itens: cat.itens.map((item) => ({ ...item, id: cat.nome + '|' + item.nome })),
   }));
   const totalItens = categorias.reduce((s, c) => s + c.itens.length, 0);
 
@@ -194,7 +195,7 @@
     const itens = cat.itens.map((it) => {
       const v = valor(it.id);
       return `
-        <li class="item ${preenchido(it.id) ? 'preenchido' : ''}" data-id="${it.id}">
+        <li class="item ${preenchido(it.id) ? 'preenchido' : ''}" data-id="${esc(it.id)}">
           <div>
             <div class="item-nome"><span class="ok" aria-hidden="true">✓</span>${esc(it.nome)}</div>
             <span class="item-medida">${esc(it.medida)}</span>

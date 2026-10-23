@@ -34,10 +34,16 @@ window.CATEGORIAS = [
   {
     nome: 'Copos',
     itens: [
-      { nome: 'Copo 300 ml', medida: 'pacote' },
-      { nome: 'Copo 400 ml', medida: 'pacote' },
-      { nome: 'Copo 500 ml', medida: 'pacote' },
-      { nome: 'Copo 700 ml', medida: 'pacote' },
+      { nome: 'Copo 150 ml normal', medida: 'pacote' },
+      { nome: 'Copo 300 ml normal', medida: 'pacote' },
+      { nome: 'Copo 400 ml normal', medida: 'pacote' },
+      { nome: 'Copo 500 ml normal', medida: 'pacote' },
+      { nome: 'Copo 700 ml normal', medida: 'pacote' },
+      { nome: 'Copo 150 ml personalizado', medida: 'pacote' },
+      { nome: 'Copo 300 ml personalizado', medida: 'pacote' },
+      { nome: 'Copo 400 ml personalizado', medida: 'pacote' },
+      { nome: 'Copo 500 ml personalizado', medida: 'pacote' },
+      { nome: 'Copo 700 ml personalizado', medida: 'pacote' },
     ],
   },
   {
