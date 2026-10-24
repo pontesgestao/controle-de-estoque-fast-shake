@@ -3,6 +3,7 @@
 
   const CHAVE_RASCUNHO = 'fastshake-contagem-v2';
   const CHAVE_EMBALAGENS = 'fastshake-embalagens-v1';
+  const CHAVE_NAO_TRABALHA = 'fastshake-nao-trabalha-v1';
   const CHAVE_PERFIL = 'fastshake-perfil-v1';
   const CHAVE_ULTIMA = 'fastshake-ultima-v1';
   const app = document.getElementById('app');
@@ -55,7 +56,7 @@
 
   function itemCompleto(id) {
     const v = valor(id);
-    if (v.modo === 'zero') return true;
+    if (v.modo === 'zero' || v.modo === 'nt') return true;
     if (v.modo === 'un') return lerNumero(v.q) !== null;
     if (v.modo === 'cx') return lerNumero(v.por) > 0 && lerNumero(v.cx) !== null;
     return false;
@@ -80,6 +81,7 @@
   // Texto da contagem de um item, usado na revisão e no PDF.
   function descrever(it, v) {
     if (v.modo === 'zero') return 'Zero';
+    if (v.modo === 'nt') return 'Não trabalha com este produto';
     if (v.modo === 'un') return `${formatar(lerNumero(v.q))} un`;
     if (v.modo === 'cx') {
       const cx = lerNumero(v.cx) || 0;
@@ -178,7 +180,10 @@
         return;
       }
       guardar(CHAVE_PERFIL, { unidade, responsavel });
-      estado = { id: gerarId(), unidade, responsavel, iniciadoEm: new Date().toISOString(), valores: {}, puladas: {}, passo: 0, observacoes: '' };
+      // Já deixa marcados os produtos que esta loja informou não trabalhar.
+      const valores = {};
+      Object.keys((carregar(CHAVE_NAO_TRABALHA) || {})[unidade] || {}).forEach((id) => { valores[id] = { modo: 'nt' }; });
+      estado = { id: gerarId(), unidade, responsavel, iniciadoEm: new Date().toISOString(), valores, puladas: {}, passo: 0, observacoes: '' };
       salvar();
       telaContagem(0);
     };
@@ -253,7 +258,10 @@
     return `
       <li class="item modo-${modo} ${itemCompleto(it.id) ? 'preenchido' : ''}" data-id="${esc(it.id)}">
         <div class="item-nome"><span class="ok" aria-hidden="true">✓</span>${esc(it.nome)}</div>
-        <p class="pergunta">Como você contou?</p>
+        <div class="pergunta-linha">
+          <p class="pergunta">Como você contou?</p>
+          <button type="button" class="link-nt" data-nt="sim">Não trabalho com este produto</button>
+        </div>
         <div class="forma" role="radiogroup" aria-label="Como você contou ${esc(it.nome)}?">
           ${opcao('un', 'Unidade')}
           ${opcao('cx', 'Caixa, fardo<br>ou pacote')}
@@ -284,6 +292,8 @@
           </div>
           <p class="conta" data-conta></p>
         </div>
+        <p class="nt-aviso">Sua loja não trabalha com este produto.
+          <button type="button" class="btn-texto" data-nt="nao">Desfazer</button></p>
       </li>`;
   }
 
@@ -416,6 +426,18 @@
       const li = e.target.closest('.item');
       if (!li) return;
 
+      const nt = e.target.closest('[data-nt]');
+      if (nt) {
+        const marcar = nt.dataset.nt === 'sim';
+        const lista = carregar(CHAVE_NAO_TRABALHA) || {};
+        const daLoja = lista[estado.unidade] || {};
+        if (marcar) daLoja[li.dataset.id] = true; else delete daLoja[li.dataset.id];
+        lista[estado.unidade] = daLoja;
+        guardar(CHAVE_NAO_TRABALHA, lista);
+        gravar(li, { modo: marcar ? 'nt' : undefined });
+        return;
+      }
+
       const opcao = e.target.closest('[data-modo]');
       if (opcao) {
         const mudancas = { modo: opcao.dataset.modo };
@@ -470,7 +492,7 @@
       itens.push({
         categoria: c.nome,
         produto: it.nome,
-        situacao: pulada(ci) ? 'Não contada' : 'Contada',
+        situacao: pulada(ci) ? 'Não contada' : (v.modo === 'nt' ? 'Não trabalha' : 'Contada'),
         forma: FORMAS[v.modo] || '',
         descricao: pulada(ci) ? 'Não contada hoje' : descrever(it, v),
         embalagem: v.modo === 'cx' ? embalagem(it) : '',
@@ -513,7 +535,8 @@
           const v = valor(it.id);
           const total = totalUnidades(v);
           return `<dt>${esc(it.nome)}${v.modo === 'cx' ? `<small>${esc(descrever(it, v).split(' = ')[0])}</small>` : ''}</dt>
-                  <dd class="${total === 0 ? 'zero' : ''}">${v.modo === 'zero' ? 'Zero' : `${formatar(total)} un`}</dd>`;
+                  <dd class="${total === 0 ? 'zero' : ''}${v.modo === 'nt' ? 'nt' : ''}">${
+                    v.modo === 'zero' ? 'Zero' : v.modo === 'nt' ? 'Não trabalha' : `${formatar(total)} un`}</dd>`;
         }).join('')}</dl>`}
       </article>`).join('');
 

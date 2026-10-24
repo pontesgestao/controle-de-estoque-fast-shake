@@ -183,6 +183,21 @@ button { cursor: pointer; }
 .conta strong { font-size: 1.1rem; }
 .conta small { color: var(--texto-suave); }
 
+/* Produto que a loja não trabalha: link discreto e cartão recolhido */
+.pergunta-linha { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: -4px; }
+.pergunta-linha .pergunta { margin: 0; white-space: nowrap; }
+.link-nt {
+  flex-shrink: 1; text-align: right; line-height: 1.2; margin: -6px -4px -6px 0; padding: 6px 4px; border: 0; background: none;
+  color: var(--texto-suave); font-size: .75rem; font-weight: 600; text-decoration: underline; opacity: .75;
+}
+.nt-aviso { display: none; margin: 0; font-size: .85rem; color: var(--texto-suave); align-items: center; justify-content: space-between; gap: 8px; }
+.nt-aviso .btn-texto { border: 0; background: none; min-height: 36px; font-size: .85rem; font-weight: 800; }
+.item.modo-nt { background: #F6F2EF; border-color: transparent; box-shadow: none; padding-top: 10px; padding-bottom: 6px; }
+.item.modo-nt .pergunta-linha, .item.modo-nt .forma, .item.modo-nt .campos, .item.modo-nt .link-nt { display: none; }
+.item.modo-nt .nt-aviso { display: flex; }
+.item.modo-nt .item-nome { color: var(--texto-suave); text-decoration: line-through; }
+.item.modo-nt .item-nome .ok { visibility: hidden; }
+
 /* ---------- Rodapé fixo ---------- */
 .rodape {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
@@ -205,6 +220,7 @@ button { cursor: pointer; }
 .selo-pulada { margin: 0; text-align: center; font-weight: 800; color: var(--texto-suave); }
 .revisao-cat dd { margin: 0; font-weight: 800; text-align: right; white-space: nowrap; }
 .revisao-cat dd.zero { color: var(--erro); }
+.revisao-cat dd.nt { color: var(--texto-suave); font-weight: 600; }
 
 .sucesso { padding: 32px 16px; text-align: center; display: flex; flex-direction: column; gap: 16px; align-items: center; }
 .sucesso .selo { width: 88px; height: 88px; border-radius: 50%; background: var(--verde-claro); color: var(--verde); display: grid; place-items: center; font-size: 3rem; }

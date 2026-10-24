@@ -106,7 +106,7 @@
     doc.setFillColor(...AZUL);
     doc.rect(margem + (larg - margem * 2) / 2, y, (larg - margem * 2) / 2, 2.2, 'F');
 
-    const contados = dados.itens.filter((i) => i.situacao !== 'Não contada');
+    const contados = dados.itens.filter((i) => i.situacao === 'Contada');
     const zerados = contados.filter((i) => i.totalUnidades === 0).length;
     const naoContadas = dados.categoriasNaoContadas || [];
     doc.setFont('helvetica', 'normal');
@@ -129,6 +129,11 @@
         }
       }
       if (i.situacao === 'Não contada') return;
+      if (i.situacao === 'Não trabalha') {
+        corpo.push([{ content: limpar(i.produto), styles: { textColor: SUAVE } },
+          { content: 'Não trabalha com este produto' }, { content: '-', styles: { textColor: SUAVE } }]);
+        return;
+      }
       const zerado = i.totalUnidades === 0;
       const como = i.forma === 'Caixa/fardo/pacote' ? i.descricao.split(' = ')[0] : i.forma;
       corpo.push([limpar(i.produto), { content: limpar(como), zerado },

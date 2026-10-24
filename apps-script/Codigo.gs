@@ -41,7 +41,7 @@ function doPost(e) {
     });
     contagens.getRange(contagens.getLastRow() + 1, 1, linhas.length, linhas[0].length).setValues(linhas);
 
-    const contados = d.itens.filter(function (i) { return i.situacao !== 'Não contada'; });
+    const contados = d.itens.filter(function (i) { return i.situacao === 'Contada'; });
     const zerados = contados.filter(function (i) { return i.totalUnidades === 0; });
     const naoContadas = (d.categoriasNaoContadas || []).join(', ');
     resumo.appendRow([quando, unidade, responsavel, contados.length, zerados.length, texto(d.observacoes),
