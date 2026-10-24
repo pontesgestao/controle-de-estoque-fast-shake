@@ -8,8 +8,10 @@ const EMAIL_AVISO = '';
 
 const ABA_RESUMO = 'Resumo';
 const ABA_CONTAGENS = 'Contagens';
-const CABECALHO_RESUMO = ['Data/hora', 'Unidade', 'Responsável', 'Itens', 'Itens zerados', 'Observações', 'Início da contagem', 'ID'];
-const CABECALHO_CONTAGENS = ['Data/hora', 'Unidade', 'Responsável', 'Categoria', 'Produto', 'Quantidade', 'Medida', 'Unidades soltas', 'ID'];
+const CABECALHO_RESUMO = ['Data/hora', 'Unidade', 'Responsável', 'Itens contados', 'Itens zerados', 'Observações',
+  'Início da contagem', 'ID', 'Categorias não contadas'];
+const CABECALHO_CONTAGENS = ['Data/hora', 'Unidade', 'Responsável', 'Categoria', 'Produto', 'Situação',
+  'Forma de contagem', 'Embalagens fechadas', 'Unidades por embalagem', 'Unidades soltas', 'Total (unidades)', 'ID'];
 
 function doPost(e) {
   const lock = LockService.getScriptLock();
@@ -33,19 +35,23 @@ function doPost(e) {
     const responsavel = texto(d.responsavel);
 
     const linhas = d.itens.map(function (i) {
-      return [quando, unidade, responsavel, texto(i.categoria), texto(i.produto),
-        numero(i.quantidade), texto(i.medida), i.avulsas === '' ? '' : numero(i.avulsas), texto(d.id)];
+      return [quando, unidade, responsavel, texto(i.categoria), texto(i.produto), texto(i.situacao),
+        texto(i.forma), numero(i.embalagens), numero(i.unidadesPorEmbalagem), numero(i.unidadesSoltas),
+        numero(i.totalUnidades), texto(d.id)];
     });
     contagens.getRange(contagens.getLastRow() + 1, 1, linhas.length, linhas[0].length).setValues(linhas);
 
-    const zerados = d.itens.filter(function (i) { return Number(i.quantidade) === 0 && !Number(i.avulsas); });
-    resumo.appendRow([quando, unidade, responsavel, d.itens.length, zerados.length,
-      texto(d.observacoes), d.iniciadoEm ? new Date(d.iniciadoEm) : '', texto(d.id)]);
+    const contados = d.itens.filter(function (i) { return i.situacao !== 'Não contada'; });
+    const zerados = contados.filter(function (i) { return i.totalUnidades === 0; });
+    const naoContadas = (d.categoriasNaoContadas || []).join(', ');
+    resumo.appendRow([quando, unidade, responsavel, contados.length, zerados.length, texto(d.observacoes),
+      d.iniciadoEm ? new Date(d.iniciadoEm) : '', texto(d.id), texto(naoContadas)]);
 
     if (EMAIL_AVISO) {
       MailApp.sendEmail(EMAIL_AVISO,
         'Contagem de estoque enviada: ' + d.unidade,
         'Unidade: ' + d.unidade + '\nResponsável: ' + d.responsavel +
+        (naoContadas ? '\nCategorias não contadas: ' + naoContadas : '') +
         '\nItens zerados (' + zerados.length + '): ' + zerados.map(function (i) { return i.produto; }).join(', ') +
         (d.observacoes ? '\nObservações: ' + d.observacoes : '') +
         '\n\nPlanilha: ' + ss.getUrl());
@@ -71,17 +77,29 @@ function configurar() {
   obterAba(ss, ABA_CONTAGENS, CABECALHO_CONTAGENS);
 }
 
+// Cria a aba se não existir. Se ela existir num formato antigo, guarda a
+// antiga com outro nome e cria uma nova, para não misturar colunas.
 function obterAba(ss, nome, cabecalho) {
   let aba = ss.getSheetByName(nome);
-  if (!aba) {
-    aba = ss.insertSheet(nome);
-    aba.getRange(1, 1, 1, cabecalho.length).setValues([cabecalho])
-      .setFontWeight('bold').setBackground('#ED4400').setFontColor('#FFFFFF');
-    aba.setFrozenRows(1);
-    aba.getRange('A:A').setNumberFormat('dd/MM/yyyy HH:mm');
-    aba.setColumnWidths(1, cabecalho.length, 140);
-    aba.getRange(1, 1, 1, cabecalho.length).createFilter();
+  if (aba) {
+    const atual = aba.getRange(1, 1, 1, cabecalho.length).getValues()[0];
+    const igual = cabecalho.every(function (c, i) { return atual[i] === c; });
+    if (igual) return aba;
+    if (nome === ABA_RESUMO && atual.slice(0, 8).every(function (c, i) { return c === cabecalho[i] || i === 3; })) {
+      // Resumo antigo: só acrescenta a coluna nova no fim.
+      aba.getRange(1, 1, 1, cabecalho.length).setValues([cabecalho])
+        .setFontWeight('bold').setBackground('#ED4400').setFontColor('#FFFFFF');
+      return aba;
+    }
+    aba.setName(nome + ' (formato antigo ' + Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'dd-MM-yyyy') + ')');
   }
+  aba = ss.insertSheet(nome, 0);
+  aba.getRange(1, 1, 1, cabecalho.length).setValues([cabecalho])
+    .setFontWeight('bold').setBackground('#ED4400').setFontColor('#FFFFFF').setWrap(true);
+  aba.setFrozenRows(1);
+  aba.getRange('A:A').setNumberFormat('dd/MM/yyyy HH:mm');
+  aba.setColumnWidths(1, cabecalho.length, 130);
+  aba.getRange(1, 1, 1, cabecalho.length).createFilter();
   return aba;
 }
 
@@ -92,6 +110,7 @@ function texto(v) {
 }
 
 function numero(v) {
+  if (v === '' || v == null) return '';
   const n = Number(v);
   return isFinite(n) ? n : '';
 }

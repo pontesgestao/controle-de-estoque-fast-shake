@@ -106,11 +106,14 @@
     doc.setFillColor(...AZUL);
     doc.rect(margem + (larg - margem * 2) / 2, y, (larg - margem * 2) / 2, 2.2, 'F');
 
-    const zerados = dados.itens.filter((i) => i.quantidade === 0 && !i.avulsas).length;
+    const contados = dados.itens.filter((i) => i.situacao !== 'Não contada');
+    const zerados = contados.filter((i) => i.totalUnidades === 0).length;
+    const naoContadas = dados.categoriasNaoContadas || [];
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(...SUAVE);
-    doc.text(`${dados.itens.length} itens contados  ·  ${zerados} zerados (em vermelho)`, margem, y + 7);
+    doc.text(limpar(`${contados.length} itens contados  ·  ${zerados} zerados (em vermelho)` +
+      (naoContadas.length ? `  ·  ${naoContadas.length} categoria(s) não contada(s)` : '')), margem, y + 7);
 
     // Uma tabela por categoria, com o nome da categoria na faixa azul.
     const corpo = [];
@@ -118,25 +121,33 @@
     dados.itens.forEach((i) => {
       if (i.categoria !== categoriaAtual) {
         categoriaAtual = i.categoria;
-        corpo.push([{ content: limpar(i.categoria).toUpperCase(), colSpan: 2,
+        corpo.push([{ content: limpar(i.categoria).toUpperCase(), colSpan: 3,
           styles: { fillColor: AZUL, textColor: 255, fontStyle: 'bold', fontSize: 10 } }]);
+        if (i.situacao === 'Não contada') {
+          corpo.push([{ content: 'NÃO CONTADA HOJE', colSpan: 3,
+            styles: { halign: 'center', fontStyle: 'bold', textColor: SUAVE, fillColor: [240, 240, 240] } }]);
+        }
       }
-      const qtd = `${numero(i.quantidade)} ${i.medida}` + (i.avulsas ? ` + ${numero(i.avulsas)} un` : '');
-      corpo.push([limpar(i.produto), { content: limpar(qtd), zerado: i.quantidade === 0 && !i.avulsas }]);
+      if (i.situacao === 'Não contada') return;
+      const zerado = i.totalUnidades === 0;
+      const como = i.forma === 'Caixa/fardo/pacote' ? i.descricao.split(' = ')[0] : i.forma;
+      corpo.push([limpar(i.produto), { content: limpar(como), zerado },
+        { content: zerado ? '0 un' : `${numero(i.totalUnidades)} un`, zerado }]);
     });
 
     doc.autoTable({
       startY: y + 11,
       margin: { left: margem, right: margem, bottom: 16 },
-      head: [['Produto', 'Quantidade']],
+      head: [['Produto', 'Como contou', 'Total']],
       body: corpo,
       theme: 'plain',
       styles: { font: 'helvetica', fontSize: 9.5, textColor: TEXTO, cellPadding: { top: 1.8, bottom: 1.8, left: 3, right: 3 } },
       headStyles: { fillColor: LARANJA, textColor: 255, fontStyle: 'bold' },
-      columnStyles: { 1: { halign: 'right', fontStyle: 'bold', cellWidth: 52 } },
+      columnStyles: { 1: { textColor: SUAVE, fontSize: 8.5, cellWidth: 62 }, 2: { halign: 'right', fontStyle: 'bold', cellWidth: 26 } },
       alternateRowStyles: { fillColor: [255, 246, 239] },
       didParseCell: (c) => {
         if (c.section === 'body' && c.cell.raw && c.cell.raw.zerado) c.cell.styles.textColor = VERMELHO;
+        if (c.section === 'head' && c.column.index === 2) c.cell.styles.halign = 'right';
       },
       didDrawPage: () => {
         const alt = doc.internal.pageSize.getHeight();

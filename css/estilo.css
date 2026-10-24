@@ -108,6 +108,8 @@ button { cursor: pointer; }
 .etapa.atual { border-color: var(--laranja); background: var(--laranja-claro); color: var(--laranja-escuro); }
 .etapa.atual .num { background: var(--laranja); color: #fff; }
 .etapa.bloqueada { opacity: .5; cursor: not-allowed; }
+.etapa.pulada { border-style: dashed; color: var(--texto-suave); }
+.etapa.pulada .num { background: #D9CFC8; color: #fff; }
 
 /* ---------- Lista de itens ---------- */
 .conteudo { flex: 1; padding: 16px 16px 120px; }
@@ -119,14 +121,13 @@ button { cursor: pointer; }
 .itens { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .item {
   background: var(--cartao); border-radius: 14px; box-shadow: var(--sombra);
-  padding: 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 12px;
+  padding: 14px 12px; display: flex; flex-direction: column; gap: 10px;
   border: 2px solid transparent; transition: border-color .15s, background-color .15s;
 }
 .item.preenchido { border-color: #CFE9D9; background: #FBFFFC; }
 .item-nome { font-weight: 800; font-size: 1rem; line-height: 1.2; display: flex; align-items: center; gap: 6px; }
 .item-nome .ok { color: var(--verde); font-size: .95rem; visibility: hidden; }
 .item.preenchido .item-nome .ok { visibility: visible; }
-.item-medida { display: inline-block; margin-top: 3px; font-size: .78rem; font-weight: 700; color: var(--azul); background: var(--azul-claro); padding: 1px 8px; border-radius: 99px; }
 
 .contador-qtd { flex-shrink: 0; display: flex; align-items: center; border: 2px solid var(--borda); border-radius: 12px; overflow: hidden; background: #fff; }
 .contador-qtd:focus-within { border-color: var(--laranja); }
@@ -139,9 +140,48 @@ button { cursor: pointer; }
   flex: 0 0 64px; width: 64px; min-width: 0; height: 48px; padding: 0; border: 0; text-align: center; font-size: 1.15rem; font-weight: 800;
   outline: none; background: transparent; -moz-appearance: textfield;
 }
-.avulsas { grid-column: 1 / -1; display: flex; align-items: center; justify-content: flex-end; gap: 8px; font-size: .85rem; color: var(--texto-suave); font-weight: 700; }
-.avulsas input { width: 84px; height: 40px; border: 2px solid var(--borda); border-radius: 10px; text-align: center; font-weight: 800; font-size: 16px; outline: none; }
-.avulsas input:focus { border-color: var(--laranja); }
+
+/* Botão de pular categoria */
+.btn-pular {
+  width: 100%; display: flex; align-items: center; gap: 14px; text-align: left;
+  margin: 4px 0 14px; padding: 14px 16px; border-radius: 14px;
+  background: var(--azul-claro); color: var(--azul); border: 2px solid var(--azul);
+  box-shadow: var(--sombra);
+}
+.btn-pular:active { background: #D3D7F0; }
+.btn-pular .icone { font-size: 1.6rem; line-height: 1; }
+.btn-pular strong { display: block; font-size: 1.05rem; font-weight: 800; }
+.btn-pular small { display: block; font-size: .85rem; color: var(--texto-suave); font-weight: 600; }
+.aviso-pulada { text-align: center; display: flex; flex-direction: column; gap: 14px; border: 2px dashed var(--azul); }
+.aviso-pulada p { margin: 0; color: var(--texto-suave); }
+.aviso-pulada strong { color: var(--azul); font-size: 1.1rem; }
+
+/* Forma de contagem */
+.pergunta { margin: -4px 0 0; font-size: .85rem; font-weight: 700; color: var(--texto-suave); }
+.forma { display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 6px; }
+.forma button {
+  min-height: 52px; padding: 6px 4px; border-radius: 12px; line-height: 1.15;
+  border: 2px solid var(--borda); background: #fff; color: var(--texto);
+  font-weight: 800; font-size: .88rem;
+}
+.forma button[aria-checked="true"] { border-color: var(--laranja); background: var(--laranja); color: #fff; }
+.forma button[data-modo="zero"][aria-checked="true"] { border-color: var(--texto-suave); background: var(--texto-suave); }
+.item.modo-nenhum .forma button { border-color: #F5C7AE; }
+
+.campos { display: none; flex-direction: column; gap: 10px; padding: 12px; border-radius: 12px; background: var(--fundo); }
+.item.modo-un .campos-un, .item.modo-cx .campos-cx { display: flex; }
+.campos .linha { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.campos label { font-size: .92rem; line-height: 1.25; }
+.campos label small { color: var(--texto-suave); }
+.campo-curto {
+  flex: 0 0 88px; width: 88px; height: 48px; border: 2px solid var(--borda); border-radius: 12px; background: #fff;
+  text-align: center; font-weight: 800; font-size: 1.15rem; outline: none;
+}
+.campo-curto:focus { border-color: var(--laranja); }
+.conta { margin: 0; padding: 10px 12px; border-radius: 10px; background: #FFF3E0; color: var(--laranja-escuro); font-size: .9rem; text-align: center; }
+.conta.pronta { background: var(--verde-claro); color: var(--verde); }
+.conta strong { font-size: 1.1rem; }
+.conta small { color: var(--texto-suave); }
 
 /* ---------- Rodapé fixo ---------- */
 .rodape {
@@ -160,6 +200,9 @@ button { cursor: pointer; }
 .revisao-cat h3 { font-size: 1.1rem; color: var(--azul); }
 .revisao-cat dl { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; font-size: .92rem; }
 .revisao-cat dt { color: var(--texto); }
+.revisao-cat dt small { display: block; color: var(--texto-suave); font-size: .8rem; }
+.revisao-cat.nao-contada { border: 2px dashed #D9CFC8; }
+.selo-pulada { margin: 0; text-align: center; font-weight: 800; color: var(--texto-suave); }
 .revisao-cat dd { margin: 0; font-weight: 800; text-align: right; white-space: nowrap; }
 .revisao-cat dd.zero { color: var(--erro); }
 
@@ -181,6 +224,8 @@ button { cursor: pointer; }
   .rodape-interno .btn-secundario { padding: 0 12px; }
   .contador-qtd button { flex-basis: 40px; width: 40px; }
   .contador-qtd input { flex-basis: 56px; width: 56px; }
+  .forma button { font-size: .8rem; }
+  .campo-curto { flex-basis: 72px; width: 72px; }
 }
 @media (min-width: 520px) {
   .contador-qtd input { flex-basis: 80px; width: 80px; }

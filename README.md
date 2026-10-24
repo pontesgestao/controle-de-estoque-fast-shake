@@ -3,6 +3,8 @@
 App de contagem de estoque para os gerentes das unidades. Funciona no navegador do celular ou do computador, sem instalar nada.
 
 - O gerente escolhe a unidade, informa o nome e conta os itens **categoria por categoria**.
+- Em cada item, ele escolhe **como contou**: por unidade, por caixa/fardo/pacote (informando quantas unidades vêm em cada um) ou "não tem". O app converte tudo para **unidades**.
+- Se uma categoria não foi contada no dia, o botão **"Não contei esta categoria hoje"** pula para a próxima, e ela aparece como "Não contada" na planilha e no PDF.
 - A próxima categoria só libera quando a atual está completa, e dá para voltar e corrigir a qualquer momento.
 - A porcentagem no topo mostra quanto da contagem já foi feito.
 - O progresso fica salvo no aparelho: se o celular travar ou a página fechar, a contagem continua de onde parou.
@@ -22,7 +24,7 @@ A planilha recebe duas abas:
 | Aba | O que tem |
 | --- | --- |
 | **Resumo** | Uma linha por contagem enviada: data, unidade, responsável, quantos itens zerados, observações. |
-| **Contagens** | Uma linha por produto de cada contagem: categoria, produto, quantidade, medida e unidades soltas (bebidas). Use o filtro para ver uma unidade ou data. |
+| **Contagens** | Uma linha por produto de cada contagem: situação (contada / não contada), forma de contagem, embalagens fechadas, unidades por embalagem, unidades soltas e **total em unidades**. Use o filtro para ver uma unidade ou data. |
 
 ## Configuração (uma vez só, ~5 minutos)
 

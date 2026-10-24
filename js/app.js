@@ -1,7 +1,8 @@
 (function () {
   'use strict';
 
-  const CHAVE_RASCUNHO = 'fastshake-contagem-v1';
+  const CHAVE_RASCUNHO = 'fastshake-contagem-v2';
+  const CHAVE_EMBALAGENS = 'fastshake-embalagens-v1';
   const CHAVE_PERFIL = 'fastshake-perfil-v1';
   const CHAVE_ULTIMA = 'fastshake-ultima-v1';
   const app = document.getElementById('app');
@@ -47,16 +48,57 @@
     return Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 2, useGrouping: false });
   }
 
-  function valor(id) { return estado.valores[id] || { q: '', a: '' }; }
-  function preenchido(id) { return lerNumero(valor(id).q) !== null; }
-  function categoriaCompleta(ci) { return categorias[ci].itens.every((it) => preenchido(it.id)); }
+  // Cada item guarda: modo ('un' | 'cx' | 'zero'), q (unidades),
+  // por (unidades por embalagem), cx (embalagens fechadas) e s (soltas).
+  function valor(id) { return estado.valores[id] || {}; }
+  function pulada(ci) { return !!(estado.puladas && estado.puladas[categorias[ci].nome]); }
+
+  function itemCompleto(id) {
+    const v = valor(id);
+    if (v.modo === 'zero') return true;
+    if (v.modo === 'un') return lerNumero(v.q) !== null;
+    if (v.modo === 'cx') return lerNumero(v.por) > 0 && lerNumero(v.cx) !== null;
+    return false;
+  }
+  function totalUnidades(v) {
+    if (v.modo === 'zero') return 0;
+    if (v.modo === 'un') return lerNumero(v.q);
+    if (v.modo === 'cx') return (lerNumero(v.cx) || 0) * (lerNumero(v.por) || 0) + (lerNumero(v.s) || 0);
+    return null;
+  }
+
+  const EMBALAGENS = { caixa: 'caixas', pacote: 'pacotes', fardo: 'fardos', 'pacote grande': 'pacotes grandes' };
+  function embalagem(it) { return EMBALAGENS[it.medida] ? it.medida : 'caixa/pacote'; }
+  function embalagens(it) { return EMBALAGENS[it.medida] || 'caixas/pacotes'; }
+
+  function perguntaFechadas(it) {
+    if (it.medida === 'caixa') return 'Quantas <strong>caixas fechadas</strong>?';
+    if (EMBALAGENS[it.medida]) return `Quantos <strong>${embalagens(it)} fechados</strong>?`;
+    return 'Quantas <strong>caixas ou pacotes fechados</strong>?';
+  }
+
+  // Texto da contagem de um item, usado na revisão e no PDF.
+  function descrever(it, v) {
+    if (v.modo === 'zero') return 'Zero';
+    if (v.modo === 'un') return `${formatar(lerNumero(v.q))} un`;
+    if (v.modo === 'cx') {
+      const cx = lerNumero(v.cx) || 0;
+      const s = lerNumero(v.s) || 0;
+      return `${formatar(cx)} ${cx === 1 ? embalagem(it) : embalagens(it)} × ${formatar(lerNumero(v.por))}` +
+        (s ? ` + ${formatar(s)} soltas` : '') + ` = ${formatar(totalUnidades(v))} un`;
+    }
+    return '';
+  }
+
+  function categoriaCompleta(ci) { return pulada(ci) || categorias[ci].itens.every((it) => itemCompleto(it.id)); }
   function liberada(ci) {
     for (let i = 0; i < ci; i++) if (!categoriaCompleta(i)) return false;
     return true;
   }
+  // Categoria marcada como não contada conta como concluída no progresso.
   function contarPreenchidos() {
     let n = 0;
-    categorias.forEach((c) => c.itens.forEach((it) => { if (preenchido(it.id)) n++; }));
+    categorias.forEach((c, ci) => c.itens.forEach((it) => { if (pulada(ci) || itemCompleto(it.id)) n++; }));
     return n;
   }
   function porcentagem() { return Math.round((contarPreenchidos() / totalItens) * 100); }
@@ -136,7 +178,7 @@
         return;
       }
       guardar(CHAVE_PERFIL, { unidade, responsavel });
-      estado = { id: gerarId(), unidade, responsavel, iniciadoEm: new Date().toISOString(), valores: {}, passo: 0, observacoes: '' };
+      estado = { id: gerarId(), unidade, responsavel, iniciadoEm: new Date().toISOString(), valores: {}, puladas: {}, passo: 0, observacoes: '' };
       salvar();
       telaContagem(0);
     };
@@ -147,9 +189,10 @@
     const etapas = categorias.map((c, ci) => {
       let classe = 'etapa';
       if (ci === passoAtual) classe += ' atual';
+      else if (pulada(ci)) classe += ' pulada';
       else if (categoriaCompleta(ci)) classe += ' feita';
       else if (!liberada(ci)) classe += ' bloqueada';
-      const marca = categoriaCompleta(ci) && ci !== passoAtual ? '✓' : ci + 1;
+      const marca = ci === passoAtual ? ci + 1 : (pulada(ci) ? '–' : (categoriaCompleta(ci) ? '✓' : ci + 1));
       return `<button class="${classe}" data-passo="${ci}" ${liberada(ci) ? '' : 'aria-disabled="true"'}>
                 <span class="num">${marca}</span>${esc(c.nome)}</button>`;
     }).join('');
@@ -192,35 +235,65 @@
   }
 
   // ---------- Contagem de uma categoria ----------
+  function htmlContador(campo, rotulo, valorCampo) {
+    return `
+      <div class="contador-qtd">
+        <button type="button" data-acao="menos" aria-label="Diminuir ${esc(rotulo)}">−</button>
+        <input type="text" inputmode="decimal" autocomplete="off" enterkeyhint="next"
+               aria-label="${esc(rotulo)}" placeholder="–" value="${esc(valorCampo || '')}" data-campo="${campo}">
+        <button type="button" data-acao="mais" aria-label="Aumentar ${esc(rotulo)}">+</button>
+      </div>`;
+  }
+
+  function htmlItem(it) {
+    const v = valor(it.id);
+    const modo = v.modo || 'nenhum';
+    const opcao = (m, texto) =>
+      `<button type="button" role="radio" data-modo="${m}" aria-checked="${v.modo === m}">${texto}</button>`;
+    return `
+      <li class="item modo-${modo} ${itemCompleto(it.id) ? 'preenchido' : ''}" data-id="${esc(it.id)}">
+        <div class="item-nome"><span class="ok" aria-hidden="true">✓</span>${esc(it.nome)}</div>
+        <p class="pergunta">Como você contou?</p>
+        <div class="forma" role="radiogroup" aria-label="Como você contou ${esc(it.nome)}?">
+          ${opcao('un', 'Unidade')}
+          ${opcao('cx', 'Caixa, fardo<br>ou pacote')}
+          ${opcao('zero', 'Não tem<br>(zero)')}
+        </div>
+
+        <div class="campos campos-un">
+          <div class="linha">
+            <label>Quantas <strong>unidades</strong>?</label>
+            ${htmlContador('q', `Unidades de ${it.nome}`, v.q)}
+          </div>
+        </div>
+
+        <div class="campos campos-cx">
+          <div class="linha">
+            <label>Quantas unidades vêm em <strong>cada ${esc(embalagem(it))}</strong>?</label>
+            <input class="campo-curto" type="text" inputmode="numeric" autocomplete="off" placeholder="?"
+                   value="${esc(v.por || '')}" data-campo="por" aria-label="Unidades em cada ${esc(embalagem(it))} de ${esc(it.nome)}">
+          </div>
+          <div class="linha">
+            <label>${perguntaFechadas(it)}</label>
+            ${htmlContador('cx', `${embalagens(it)} fechados de ${it.nome}`, v.cx)}
+          </div>
+          <div class="linha">
+            <label>Unidades <strong>soltas</strong> <small>(se tiver)</small></label>
+            <input class="campo-curto" type="text" inputmode="numeric" autocomplete="off" placeholder="0"
+                   value="${esc(v.s || '')}" data-campo="s" aria-label="Unidades soltas de ${esc(it.nome)}">
+          </div>
+          <p class="conta" data-conta></p>
+        </div>
+      </li>`;
+  }
+
   function telaContagem(ci) {
     if (!liberada(ci)) ci = 0;
     estado.passo = ci;
     salvar();
     const cat = categorias[ci];
     const ultima = ci === categorias.length - 1;
-
-    const itens = cat.itens.map((it) => {
-      const v = valor(it.id);
-      return `
-        <li class="item ${preenchido(it.id) ? 'preenchido' : ''}" data-id="${esc(it.id)}">
-          <div>
-            <div class="item-nome"><span class="ok" aria-hidden="true">✓</span>${esc(it.nome)}</div>
-            <span class="item-medida">${esc(it.medida)}</span>
-          </div>
-          <div class="contador-qtd">
-            <button type="button" data-acao="menos" aria-label="Diminuir ${esc(it.nome)}">−</button>
-            <input type="text" inputmode="decimal" autocomplete="off" enterkeyhint="next"
-                   aria-label="Quantidade de ${esc(it.nome)} em ${esc(it.medida)}"
-                   placeholder="–" value="${esc(v.q)}" data-campo="q">
-            <button type="button" data-acao="mais" aria-label="Aumentar ${esc(it.nome)}">+</button>
-          </div>
-          ${it.avulsas ? `
-            <label class="avulsas">+ unidades soltas
-              <input type="text" inputmode="numeric" autocomplete="off" placeholder="0" value="${esc(v.a)}" data-campo="a"
-                     aria-label="Unidades soltas de ${esc(it.nome)}">
-            </label>` : ''}
-        </li>`;
-    }).join('');
+    const naoContada = pulada(ci);
 
     app.innerHTML = `
       ${htmlTopo(ci)}
@@ -229,8 +302,17 @@
           <h2>${esc(cat.nome)}</h2>
           <span class="contador" id="contador-cat"></span>
         </div>
-        <p class="dica">Digite a quantidade de cada item. Se não houver nenhum, coloque <strong>0</strong>. Aceita meio: <strong>0,5</strong>.</p>
-        <ul class="itens">${itens}</ul>
+        ${naoContada ? `
+          <div class="cartao aviso-pulada">
+            <p><strong>Categoria não contada hoje.</strong><br>Ela não entra nesta contagem.</p>
+            <button class="btn btn-secundario btn-bloco" id="desfazer-pular">Desfazer, vou contar esta categoria</button>
+          </div>` : `
+          <button class="btn-pular" id="pular">
+            <span class="icone" aria-hidden="true">⏭</span>
+            <span><strong>Não contei esta categoria hoje</strong><small>Toque aqui para pular para a próxima</small></span>
+          </button>
+          <p class="dica">Para cada item, escolha <strong>como contou</strong>. Se contou em caixa, fardo ou pacote, informe quantas unidades vêm em cada um.</p>
+          <ul class="itens">${cat.itens.map(htmlItem).join('')}</ul>`}
       </section>
       <footer class="rodape">
         <div class="rodape-interno">
@@ -242,17 +324,19 @@
 
     ligarEtapas();
 
-    const lista = app.querySelector('.itens');
     const btnAvancar = document.getElementById('avancar');
+    const irParaProxima = () => (ultima ? telaRevisao() : telaContagem(ci + 1));
+    document.getElementById('voltar').onclick = () => (ci === 0 ? telaInicio() : telaContagem(ci - 1));
+    btnAvancar.onclick = () => { if (categoriaCompleta(ci)) irParaProxima(); };
 
     function atualizarCategoria() {
-      const feitos = cat.itens.filter((it) => preenchido(it.id)).length;
-      const falta = cat.itens.length - feitos;
-      document.getElementById('contador-cat').textContent = `${feitos}/${cat.itens.length}`;
+      const feitos = cat.itens.filter((it) => itemCompleto(it.id)).length;
+      const falta = naoContada ? 0 : cat.itens.length - feitos;
+      document.getElementById('contador-cat').textContent = naoContada ? 'Não contada' : `${feitos}/${cat.itens.length}`;
       btnAvancar.disabled = falta > 0;
       document.getElementById('falta').textContent = falta > 0
         ? `Falta${falta > 1 ? 'm' : ''} ${falta} ${falta > 1 ? 'itens' : 'item'} para liberar a próxima etapa`
-        : 'Categoria completa!';
+        : (naoContada ? 'Categoria não contada hoje' : 'Categoria completa!');
       atualizarProgresso();
       // Atualiza as bolinhas das etapas sem redesenhar a tela.
       app.querySelectorAll('.etapa').forEach((b) => {
@@ -262,19 +346,55 @@
         b.classList.toggle('bloqueada', !ok && idx !== ci);
         if (ok) b.removeAttribute('aria-disabled'); else b.setAttribute('aria-disabled', 'true');
         if (alvo !== 'revisao' && idx !== ci) {
-          b.classList.toggle('feita', categoriaCompleta(idx));
-          b.querySelector('.num').textContent = categoriaCompleta(idx) ? '✓' : idx + 1;
+          b.classList.toggle('feita', categoriaCompleta(idx) && !pulada(idx));
+          b.classList.toggle('pulada', pulada(idx));
+          b.querySelector('.num').textContent = pulada(idx) ? '–' : (categoriaCompleta(idx) ? '✓' : idx + 1);
         }
       });
     }
 
-    function gravar(li, campo, texto) {
-      const id = li.dataset.id;
-      const v = { ...valor(id) };
-      v[campo] = texto;
-      estado.valores[id] = v;
-      li.classList.toggle('preenchido', preenchido(id));
+    if (naoContada) {
+      document.getElementById('desfazer-pular').onclick = () => {
+        delete estado.puladas[cat.nome];
+        salvar();
+        telaContagem(ci);
+      };
+      atualizarCategoria();
+      window.scrollTo(0, 0);
+      return;
+    }
+
+    document.getElementById('pular').onclick = () => {
+      if (!confirm(`Marcar "${cat.nome}" como NÃO CONTADA hoje?\n\nEla não vai entrar nesta contagem.`)) return;
+      estado.puladas = estado.puladas || {};
+      estado.puladas[cat.nome] = true;
       salvar();
+      irParaProxima();
+    };
+
+    const lista = app.querySelector('.itens');
+    const memoria = carregar(CHAVE_EMBALAGENS) || {};
+
+    function atualizarItem(li) {
+      const id = li.dataset.id;
+      const it = cat.itens.find((x) => x.id === id);
+      const v = valor(id);
+      li.className = `item modo-${v.modo || 'nenhum'} ${itemCompleto(id) ? 'preenchido' : ''}`;
+      li.querySelectorAll('[data-modo]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.modo === v.modo)));
+      const conta = li.querySelector('[data-conta]');
+      if (v.modo === 'cx') {
+        if (!(lerNumero(v.por) > 0)) conta.innerHTML = `Informe quantas unidades vêm em cada ${esc(embalagem(it))}.`;
+        else if (lerNumero(v.cx) === null) conta.innerHTML = `Informe quantas embalagens fechadas você contou.`;
+        else conta.innerHTML = `Total: <strong>${formatar(totalUnidades(v))} unidades</strong><br><small>${esc(descrever(it, v))}</small>`;
+        conta.classList.toggle('pronta', itemCompleto(id));
+      }
+    }
+
+    function gravar(li, mudancas) {
+      const id = li.dataset.id;
+      estado.valores[id] = { ...valor(id), ...mudancas };
+      salvar();
+      atualizarItem(li);
       atualizarCategoria();
     }
 
@@ -284,27 +404,48 @@
       // Mantém só números, vírgula, ponto e barra.
       const limpo = input.value.replace(/[^\d.,/]/g, '');
       if (limpo !== input.value) input.value = limpo;
-      gravar(input.closest('.item'), input.dataset.campo, limpo);
+      const li = input.closest('.item');
+      if (input.dataset.campo === 'por' && lerNumero(limpo) > 0) {
+        memoria[li.dataset.id] = limpo;
+        guardar(CHAVE_EMBALAGENS, memoria);
+      }
+      gravar(li, { [input.dataset.campo]: limpo });
     });
 
     lista.addEventListener('click', (e) => {
+      const li = e.target.closest('.item');
+      if (!li) return;
+
+      const opcao = e.target.closest('[data-modo]');
+      if (opcao) {
+        const mudancas = { modo: opcao.dataset.modo };
+        // Sugere a quantidade por embalagem usada na última vez neste aparelho.
+        if (mudancas.modo === 'cx' && !valor(li.dataset.id).por && memoria[li.dataset.id]) {
+          mudancas.por = memoria[li.dataset.id];
+          li.querySelector('[data-campo="por"]').value = mudancas.por;
+        }
+        gravar(li, mudancas);
+        const primeiro = li.querySelector(mudancas.modo === 'un' ? '[data-campo="q"]' : '[data-campo="por"]');
+        if (mudancas.modo !== 'zero' && primeiro && !primeiro.value) primeiro.focus();
+        return;
+      }
+
       const botao = e.target.closest('button[data-acao]');
       if (!botao) return;
-      const li = botao.closest('.item');
-      const input = li.querySelector('input[data-campo="q"]');
+      const input = botao.parentElement.querySelector('input');
       const atual = lerNumero(input.value);
       let novo;
       if (botao.dataset.acao === 'mais') novo = atual === null ? 1 : Math.floor(atual) + 1;
       else novo = atual === null ? 0 : Math.max(0, Math.ceil(atual) - 1);
       input.value = formatar(novo);
-      gravar(li, 'q', input.value);
+      gravar(li, { [input.dataset.campo]: input.value });
     });
 
-    // "Enter"/"próximo" do teclado leva ao próximo item vazio.
+    // "Enter"/"próximo" do teclado leva ao próximo campo visível vazio.
     lista.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
       e.preventDefault();
-      const campos = [...lista.querySelectorAll('input[data-campo="q"]')];
+      const campos = [...lista.querySelectorAll('input')].filter((c) => c.offsetParent !== null);
       const i = campos.indexOf(e.target);
       const proximo = campos.slice(i + 1).find((c) => c.value === '') || campos[i + 1];
       if (proximo) proximo.focus(); else e.target.blur();
@@ -314,27 +455,34 @@
       if (e.target.matches('input')) setTimeout(() => e.target.select(), 0);
     });
 
-    document.getElementById('voltar').onclick = () => (ci === 0 ? telaInicio() : telaContagem(ci - 1));
-    btnAvancar.onclick = () => {
-      if (!categoriaCompleta(ci)) return;
-      if (ultima) telaRevisao(); else telaContagem(ci + 1);
-    };
-
+    lista.querySelectorAll('.item').forEach(atualizarItem);
     atualizarCategoria();
     window.scrollTo(0, 0);
   }
 
   // ---------- Revisão e envio ----------
   function montarEnvio() {
+    const FORMAS = { un: 'Unidade', cx: 'Caixa/fardo/pacote', zero: 'Zero' };
     const itens = [];
-    categorias.forEach((c) => c.itens.forEach((it) => {
-      const v = valor(it.id);
+    categorias.forEach((c, ci) => c.itens.forEach((it) => {
+      const v = pulada(ci) ? {} : valor(it.id);
+      const total = pulada(ci) ? '' : totalUnidades(v);
       itens.push({
         categoria: c.nome,
         produto: it.nome,
-        quantidade: lerNumero(v.q),
-        medida: it.medida,
-        avulsas: it.avulsas ? (lerNumero(v.a) || 0) : '',
+        situacao: pulada(ci) ? 'Não contada' : 'Contada',
+        forma: FORMAS[v.modo] || '',
+        descricao: pulada(ci) ? 'Não contada hoje' : descrever(it, v),
+        embalagem: v.modo === 'cx' ? embalagem(it) : '',
+        embalagens: v.modo === 'cx' ? lerNumero(v.cx) : '',
+        unidadesPorEmbalagem: v.modo === 'cx' ? lerNumero(v.por) : '',
+        unidadesSoltas: v.modo === 'cx' ? (lerNumero(v.s) || 0) : '',
+        totalUnidades: total,
+        // Campos do formato anterior, para a planilha não quebrar antes de o
+        // Apps Script ser atualizado.
+        quantidade: total,
+        medida: 'un',
+        avulsas: '',
       });
     }));
     return {
@@ -344,6 +492,7 @@
       iniciadoEm: estado.iniciadoEm,
       enviadoEm: new Date().toISOString(),
       observacoes: estado.observacoes || '',
+      categoriasNaoContadas: categorias.filter((c, ci) => pulada(ci)).map((c) => c.nome),
       itens,
     };
   }
@@ -354,25 +503,25 @@
     salvar();
 
     const blocos = categorias.map((c, ci) => `
-      <article class="cartao revisao-cat">
+      <article class="cartao revisao-cat ${pulada(ci) ? 'nao-contada' : ''}">
         <header>
           <h3>${esc(c.nome)}</h3>
           <button class="btn btn-texto" data-editar="${ci}">Corrigir</button>
         </header>
+        ${pulada(ci) ? '<p class="selo-pulada">Não contada hoje</p>' : `
         <dl>${c.itens.map((it) => {
           const v = valor(it.id);
-          const q = lerNumero(v.q);
-          const a = it.avulsas ? lerNumero(v.a) : null;
-          return `<dt>${esc(it.nome)}</dt>
-                  <dd class="${q === 0 && !a ? 'zero' : ''}">${formatar(q)} ${esc(it.medida)}${a ? ` + ${formatar(a)} un` : ''}</dd>`;
-        }).join('')}</dl>
+          const total = totalUnidades(v);
+          return `<dt>${esc(it.nome)}${v.modo === 'cx' ? `<small>${esc(descrever(it, v).split(' = ')[0])}</small>` : ''}</dt>
+                  <dd class="${total === 0 ? 'zero' : ''}">${v.modo === 'zero' ? 'Zero' : `${formatar(total)} un`}</dd>`;
+        }).join('')}</dl>`}
       </article>`).join('');
 
     app.innerHTML = `
       ${htmlTopo('revisao')}
       <section class="conteudo">
         <div class="cabecalho-categoria"><h2>Revisar e enviar</h2></div>
-        <p class="dica">Confira os números. Itens zerados aparecem em vermelho. Toque em <strong>Corrigir</strong> para ajustar.</p>
+        <p class="dica">Confira os totais <strong>em unidades</strong>. Itens zerados aparecem em vermelho. Toque em <strong>Corrigir</strong> para ajustar.</p>
         ${blocos}
         <div class="cartao">
           <div class="campo">
