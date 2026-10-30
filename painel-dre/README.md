@@ -25,6 +25,9 @@ Painel separado do app de contagem. **Só você acessa**, entrando com a sua con
 - O painel lê tanto a aba **Contagens** atual quanto as abas **Contagens (formato antigo …)**. Das antigas, só aproveita as contagens enviadas pelo app novo (tudo em unidades).
 - Categoria marcada como **"Não contei esta categoria hoje"** em qualquer uma das duas contagens fica **fora do cálculo** daquele período (produtos e compras), com aviso.
 - Produto marcado como **"Não trabalho com este produto"** conta como zero.
+- O valor de cada item da nota inclui o **IPI e o ICMS-ST** daquele item, porque a loja paga esses impostos e não os recupera. Se sobrar diferença de frete ou de impostos que não estão nos itens, o botão **"Distribuir … entre os itens"** reparte o valor proporcionalmente.
+- Nota com **mais de uma folha**: envie as fotos de todas as folhas juntas antes de ler.
+- **"Unid./emb."** é quantas unidades *contadas na loja* vêm em cada embalagem (ex.: pacote com 6 frascos = 6; galão = 1). Peso (7 kg, 1 kg) não entra nesse campo.
 - Itens da nota marcados como **"Fora do estoque"** (sacola, guardanapo, etc.) são guardados, mas não entram no CMV.
 
 ## Instalação (uma vez, ~10 minutos)

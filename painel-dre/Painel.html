@@ -598,7 +598,7 @@
             const revisar = !fora && (!it.produto || !por || emb == null || it.confianca === 'baixa');
             return `<tr class="${fora ? 'fora' : revisar ? 'revisar' : ''}" data-i="${i}">
               <td><input type="text" data-campo="descricao" value="${esc(it.descricao)}" placeholder="Descrição">
-                ${it.unidadeNota ? `<div class="desc">Na nota: ${qtd(it.quantidadeNota)} ${esc(it.unidadeNota)}${it.confianca ? ' · confiança ' + esc(it.confianca) : ''}</div>` : ''}</td>
+                ${it.unidadeNota ? `<div class="desc">Na nota: ${qtd(it.quantidadeNota)} ${esc(it.unidadeNota)}${it.confianca ? ' · confiança ' + esc(it.confianca) : ''}${it.impostos ? ` · inclui ${dinheiro(it.impostos)} de impostos` : ''}</div>` : ''}</td>
               <td><select data-campo="produto">${opcoesProduto(it.produto)}</select></td>
               <td class="r"><input class="num" style="width:80px;text-align:right" type="text" inputmode="decimal" data-campo="embalagens" value="${esc(it.embalagens)}" ${fora ? 'disabled' : ''}></td>
               <td class="r"><input class="num" style="width:80px;text-align:right" type="text" inputmode="numeric" data-campo="porEmbalagem" value="${esc(it.porEmbalagem)}" ${fora ? 'disabled' : ''} placeholder="?"></td>
@@ -615,6 +615,14 @@
               ${Math.abs(n.valorNota - somaItens) > 0.05 ? `<span class="tag erro">diferença de ${dinheiro(n.valorNota - somaItens)}</span>` : '<span class="tag ok">confere</span>'}` : ''}</div>
           <button class="btn btn-azul" id="c-salvar">Salvar compra</button>
         </div>
+        ${n.aviso ? `<p class="alerta" style="margin-top:12px"><strong>Aviso da leitura</strong>${esc(n.aviso)}</p>` : ''}
+        ${n.valorNota && Math.abs(n.valorNota - somaItens) > 0.05 ? `
+        <div class="alerta" style="margin-top:12px">
+          <strong>A soma dos itens não bate com o total da nota</strong>
+          Se a nota tem mais de uma folha, adicione as fotos das outras folhas e leia de novo.
+          Se a diferença for de frete, seguro ou impostos que não estão nos itens, você pode distribuí-la entre os itens, proporcional ao valor de cada um.
+          <div style="margin-top:8px"><button class="btn btn-secundario" id="c-ratear">Distribuir ${dinheiro(n.valorNota - somaItens)} entre os itens</button></div>
+        </div>` : ''}
       </div>` : ''}
 
       <div class="cartao">
@@ -660,6 +668,7 @@
     document.getElementById('c-ler').onclick = async (e) => {
       lerCampos();
       if (!dados.temChave) { toast('Cadastre a chave da API em Configurações.', true); return; }
+      if (n.itens.length && !confirm('Ler de novo substitui os itens da tabela. Continuar?')) return;
       const b = e.currentTarget;
       b.disabled = true;
       b.innerHTML = '<span class="carregando"></span> Lendo a nota… (até 1 minuto)';
@@ -669,14 +678,20 @@
         if (r.documento && !n.documento) n.documento = r.documento;
         if (/^\d{4}-\d{2}-\d{2}$/.test(r.data || '')) n.dia = r.data;
         n.valorNota = r.valorNota || null;
-        n.itens = n.itens.concat((r.itens || []).map((it) => ({
-          descricao: it.descricao,
-          produto: it.produto >= 0 && cat[it.produto] ? cat[it.produto].chave : '',
-          embalagens: it.quantidade != null ? String(it.quantidade).replace('.', ',') : '',
-          porEmbalagem: it.unidadesPorEmbalagem > 0 ? String(it.unidadesPorEmbalagem) : '',
-          valor: it.valorTotal != null ? String(Math.round(it.valorTotal * 100) / 100).replace('.', ',') : '',
-          unidadeNota: it.unidadeNota, quantidadeNota: it.quantidade, confianca: it.confianca,
-        })));
+        n.aviso = r.aviso || '';
+        // IPI e ICMS-ST do item entram no custo: a loja paga e não recupera.
+        n.itens = (r.itens || []).map((it) => {
+          const impostos = (it.ipi || 0) + (it.icmsSt || 0);
+          const valor = (it.valorTotal || 0) + impostos;
+          return {
+            descricao: it.descricao,
+            produto: it.produto >= 0 && cat[it.produto] ? cat[it.produto].chave : '',
+            embalagens: it.quantidade != null ? String(it.quantidade).replace('.', ',') : '',
+            porEmbalagem: it.unidadesPorEmbalagem > 0 ? String(it.unidadesPorEmbalagem) : '',
+            valor: String(Math.round(valor * 100) / 100).replace('.', ','),
+            impostos, unidadeNota: it.unidadeNota, quantidadeNota: it.quantidade, confianca: it.confianca,
+          };
+        });
         toast(`${(r.itens || []).length} itens lidos. Confira antes de salvar.`);
       } catch (err) {
         toast(err.message || 'Erro ao ler a nota', true);
@@ -703,6 +718,22 @@
         if (r) { n.itens.splice(Number(r.dataset.remover), 1); render(); }
       });
     }
+
+    const ratear = document.getElementById('c-ratear');
+    if (ratear) ratear.onclick = () => {
+      const valores = n.itens.map((it) => numero(it.valor) || 0);
+      const soma = valores.reduce((s, v) => s + v, 0);
+      const diferenca = Math.round((n.valorNota - soma) * 100) / 100;
+      if (!soma) return;
+      let distribuido = 0;
+      n.itens.forEach((it, i) => {
+        const parte = i === n.itens.length - 1 ? Math.round((diferenca - distribuido) * 100) / 100 : Math.round(diferenca * valores[i] / soma * 100) / 100;
+        distribuido += parte;
+        it.valor = String(Math.round((valores[i] + parte) * 100) / 100).replace('.', ',');
+      });
+      toast(`${dinheiro(diferenca)} distribuídos entre os itens`);
+      render();
+    };
 
     const salvar = document.getElementById('c-salvar');
     if (salvar) salvar.onclick = async () => {

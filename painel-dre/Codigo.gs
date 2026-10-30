@@ -268,14 +268,23 @@ function lerNota(fotos, catalogo) {
     '- descricao: o texto do item como está na nota.\n' +
     '- quantidade: a quantidade comprada, na unidade da nota.\n' +
     '- unidadeNota: a unidade da nota (UN, CX, FD, PCT, KG, L etc.).\n' +
-    '- unidadesPorEmbalagem: quantas unidades vêm em cada embalagem comprada, quando a descrição deixar claro ' +
-    '(ex.: "CX C/12" = 12, "FD 6X2L" = 6). Use 1 quando o item foi comprado por unidade. Use 0 quando não der para saber.\n' +
-    '- valorTotal: o valor total pago no item (com descontos do item), em reais.\n' +
+    '- unidadesPorEmbalagem: quantas unidades CONTÁVEIS (frascos, latas, potes, galões, pacotinhos) vêm em cada ' +
+    'embalagem comprada, quando a descrição deixar claro (ex.: "PK C/6" = 6, "CX C/12" = 12, "FD 6X2L" = 6). ' +
+    'Peso e volume NÃO são unidades: "7,0 KG", "1,3 KG", "2 L" descrevem o tamanho de uma unidade. ' +
+    'Use 1 quando a unidade da nota já é a própria unidade contada (UN, GL/galão, BD/balde, LT/lata, FR/frasco). ' +
+    'Use 0 quando não der para saber.\n' +
+    '- valorTotal: o valor total do item na nota (coluna de valor total do produto, com descontos do item), em reais, sem impostos destacados.\n' +
+    '- ipi: o valor de IPI do item, se estiver na linha do item; senão 0.\n' +
+    '- icmsSt: o valor de ICMS-ST (substituição tributária) do item, se estiver na linha ou na descrição do item ' +
+    '(ex.: "VLR ST (R$: 81,63)"); senão 0.\n' +
     '- produto: o número do produto do catálogo abaixo que corresponde ao item, ou -1 quando nenhum corresponde ' +
     '(por exemplo, itens que não são controlados no estoque).\n' +
     '- confianca: "alta", "media" ou "baixa" para a associação com o produto.\n\n' +
-    'Informe também o fornecedor (nome do emitente), o número do documento, a data de emissão (AAAA-MM-DD) e o ' +
-    'valor total da nota. Deixe vazio (ou 0) o que não estiver legível; não invente valores.\n\n' +
+    'Informe também o fornecedor (nome do emitente), o número do documento, a data de emissão (AAAA-MM-DD), o ' +
+    'valor total dos produtos e o valor total da nota. Deixe vazio (ou 0) o que não estiver legível; não invente valores.\n' +
+    'Em "aviso", escreva em português, numa frase curta, qualquer coisa que a pessoa precise saber: por exemplo, ' +
+    'se a nota tem mais de uma folha (ex.: "Folha 1/2") e alguma folha não foi enviada, se há frete, seguro ou ' +
+    'outras despesas, ou se algum item ficou ilegível. Deixe vazio quando não houver nada.\n\n' +
     'Catálogo de produtos do estoque (número | categoria | produto):\n' + listaProdutos;
 
   const conteudo = fotos.map(function (arq) {
@@ -289,24 +298,28 @@ function lerNota(fotos, catalogo) {
   const esquema = {
     type: 'object',
     additionalProperties: false,
-    required: ['fornecedor', 'documento', 'data', 'valorNota', 'itens'],
+    required: ['fornecedor', 'documento', 'data', 'valorProdutos', 'valorNota', 'aviso', 'itens'],
     properties: {
       fornecedor: { type: 'string' },
       documento: { type: 'string' },
       data: { type: 'string' },
+      valorProdutos: { type: 'number' },
       valorNota: { type: 'number' },
+      aviso: { type: 'string' },
       itens: {
         type: 'array',
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['descricao', 'quantidade', 'unidadeNota', 'unidadesPorEmbalagem', 'valorTotal', 'produto', 'confianca'],
+          required: ['descricao', 'quantidade', 'unidadeNota', 'unidadesPorEmbalagem', 'valorTotal', 'ipi', 'icmsSt', 'produto', 'confianca'],
           properties: {
             descricao: { type: 'string' },
             quantidade: { type: 'number' },
             unidadeNota: { type: 'string' },
             unidadesPorEmbalagem: { type: 'number' },
             valorTotal: { type: 'number' },
+            ipi: { type: 'number' },
+            icmsSt: { type: 'number' },
             produto: { type: 'integer' },
             confianca: { type: 'string', enum: ['alta', 'media', 'baixa'] },
           },
