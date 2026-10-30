@@ -6,15 +6,43 @@
   const CHAVE_NAO_TRABALHA = 'fastshake-nao-trabalha-v1';
   const CHAVE_PERFIL = 'fastshake-perfil-v1';
   const CHAVE_ULTIMA = 'fastshake-ultima-v1';
+  const CHAVE_PRODUTOS_NOVOS = 'fastshake-produtos-novos-v1';
   const app = document.getElementById('app');
 
+  // Produtos criados no Painel DRE (aba "Produtos novos" da planilha) entram
+  // no fim da categoria deles, ou numa categoria nova no fim da lista.
   // Cada item ganha um id pelo nome (categoria + produto), assim incluir ou
   // reordenar produtos não embaralha uma contagem que já estava em andamento.
-  const categorias = window.CATEGORIAS.map((cat) => ({
-    nome: cat.nome,
-    itens: cat.itens.map((item) => ({ ...item, id: cat.nome + '|' + item.nome })),
-  }));
-  const totalItens = categorias.reduce((s, c) => s + c.itens.length, 0);
+  function montarCategorias(extras) {
+    const lista = window.CATEGORIAS.map((cat) => ({ nome: cat.nome, itens: cat.itens.slice() }));
+    (extras || []).forEach((p) => {
+      let cat = lista.find((c) => c.nome.toLowerCase() === p.categoria.toLowerCase());
+      if (!cat) { cat = { nome: p.categoria, itens: [] }; lista.push(cat); }
+      if (!cat.itens.some((it) => it.nome.toLowerCase() === p.produto.toLowerCase())) cat.itens.push({ nome: p.produto, medida: 'un' });
+    });
+    return lista.map((cat) => ({
+      nome: cat.nome,
+      itens: cat.itens.map((item) => ({ ...item, id: cat.nome + '|' + item.nome })),
+    }));
+  }
+  let produtosNovos = carregar(CHAVE_PRODUTOS_NOVOS) || [];
+  let categorias = montarCategorias(produtosNovos);
+  let totalItens = categorias.reduce((s, c) => s + c.itens.length, 0);
+
+  // Busca a lista atualizada de produtos novos. Ela vale a partir da próxima
+  // contagem iniciada, para não mudar uma contagem em andamento.
+  function buscarProdutosNovos() {
+    const url = (window.CONFIG.URL_PLANILHA || '').trim();
+    if (!url) return;
+    fetch(url + (url.includes('?') ? '&' : '?') + 'acao=produtos')
+      .then((r) => r.json())
+      .then((json) => {
+        if (!json || !Array.isArray(json.produtos)) return;
+        produtosNovos = json.produtos.filter((p) => p && p.categoria && p.produto);
+        guardar(CHAVE_PRODUTOS_NOVOS, produtosNovos);
+      })
+      .catch(() => { /* sem internet: usa a última lista guardada */ });
+  }
 
   let estado = carregar(CHAVE_RASCUNHO) || null;
 
@@ -181,6 +209,8 @@
       }
       guardar(CHAVE_PERFIL, { unidade, responsavel });
       // Já deixa marcados os produtos que esta loja informou não trabalhar.
+      categorias = montarCategorias(produtosNovos);
+      totalItens = categorias.reduce((s, c) => s + c.itens.length, 0);
       const valores = {};
       Object.keys((carregar(CHAVE_NAO_TRABALHA) || {})[unidade] || {}).forEach((id) => { valores[id] = { modo: 'nt' }; });
       estado = { id: gerarId(), unidade, responsavel, iniciadoEm: new Date().toISOString(), valores, puladas: {}, passo: 0, observacoes: '' };
@@ -653,5 +683,6 @@
     if (botao && botao.disabled) { e.preventDefault(); e.returnValue = ''; }
   });
 
+  buscarProdutosNovos();
   telaInicio();
 })();

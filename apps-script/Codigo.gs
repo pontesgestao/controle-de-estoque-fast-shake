@@ -8,6 +8,7 @@ const EMAIL_AVISO = '';
 
 const ABA_RESUMO = 'Resumo';
 const ABA_CONTAGENS = 'Contagens';
+const ABA_PRODUTOS_NOVOS = 'Produtos novos';
 const CABECALHO_RESUMO = ['Data/hora', 'Unidade', 'Responsável', 'Itens contados', 'Itens zerados', 'Observações',
   'Início da contagem', 'ID', 'Categorias não contadas'];
 const CABECALHO_CONTAGENS = ['Data/hora', 'Unidade', 'Responsável', 'Categoria', 'Produto', 'Situação',
@@ -66,7 +67,17 @@ function doPost(e) {
 }
 
 // Permite testar o endereço no navegador.
-function doGet() {
+// ?acao=produtos devolve os produtos criados no Painel DRE (aba
+// "Produtos novos"), para o app de contagem incluir na lista.
+// Sem parâmetro, só confirma que o endereço funciona.
+function doGet(e) {
+  if (e && e.parameter && e.parameter.acao === 'produtos') {
+    const aba = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ABA_PRODUTOS_NOVOS);
+    const produtos = !aba || aba.getLastRow() < 2 ? [] : aba.getRange(2, 1, aba.getLastRow() - 1, 2).getValues()
+      .filter(function (r) { return r[0] && r[1]; })
+      .map(function (r) { return { categoria: String(r[0]).trim(), produto: String(r[1]).trim() }; });
+    return responder({ ok: true, produtos: produtos });
+  }
   return responder({ ok: true, app: 'Contagem Fast Shake' });
 }
 
