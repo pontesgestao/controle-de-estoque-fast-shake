@@ -12,6 +12,7 @@ const ABA_COMPRAS = 'Compras';
 const ABA_CUSTOS = 'Custos';
 const ABA_FATURAMENTO = 'Faturamento';
 const ABA_IGNORADAS = 'Contagens ignoradas';
+const ABA_PRODUTOS = 'Produtos novos';
 
 const CAB_COMPRAS = ['ID compra', 'Data da compra', 'Loja', 'Fornecedor', 'Nº documento', 'Descrição na nota',
   'Categoria', 'Produto', 'Situação', 'Embalagens', 'Unid. por embalagem', 'Total (unidades)',
@@ -19,6 +20,7 @@ const CAB_COMPRAS = ['ID compra', 'Data da compra', 'Loja', 'Fornecedor', 'Nº d
 const CAB_CUSTOS = ['Categoria', 'Produto', 'Custo por unidade (R$)', 'Vigente desde', 'Origem', 'ID compra', 'Registrado em'];
 const CAB_FATURAMENTO = ['Loja', 'Contagem inicial (ID)', 'Contagem final (ID)', 'Início', 'Fim', 'Faturamento (R$)', 'Atualizado em'];
 const CAB_IGNORADAS = ['ID contagem', 'Loja', 'Data', 'Ignorada em'];
+const CAB_PRODUTOS = ['Categoria', 'Produto', 'Criado em'];
 
 const MODELO_IA = 'claude-opus-5-5';
 const PASTA_FOTOS = 'Fast Shake - Notas fiscais';
@@ -80,6 +82,7 @@ function carregarDados() {
   });
 
   const ignoradas = linhas_(ss, ABA_IGNORADAS, CAB_IGNORADAS).map(function (r) { return String(r[0]); });
+  const produtosNovos = linhas_(ss, ABA_PRODUTOS, CAB_PRODUTOS).map(function (r) { return { categoria: String(r[0]), produto: String(r[1]) }; });
 
   const compras = linhas_(ss, ABA_COMPRAS, CAB_COMPRAS).map(function (r) {
     return { id: String(r[0]), dia: fmt(r[1], 'yyyy-MM-dd'), loja: String(r[2]), fornecedor: String(r[3]), documento: String(r[4]),
@@ -98,7 +101,7 @@ function carregarDados() {
 
   return {
     contagens: Object.keys(contagens).map(function (k) { return contagens[k]; }),
-    ignoradas: ignoradas, compras: compras, custos: custos, faturamento: faturamento,
+    ignoradas: ignoradas, produtosNovos: produtosNovos, compras: compras, custos: custos, faturamento: faturamento,
     temChave: !!props_().getProperty('ANTHROPIC_API_KEY'),
   };
 }
@@ -162,6 +165,19 @@ function salvarCusto(c) {
   aba.appendRow([texto_(c.categoria), texto_(c.produto), Number(c.custo), c.desde ? new Date(c.desde + 'T12:00:00') : new Date(),
     'Manual', '', new Date()]);
   return true;
+}
+
+// Cadastra um produto que ainda não existe na contagem (vindo de uma nota).
+function criarProduto(p) {
+  const categoria = String(p.categoria || '').trim();
+  const produto = String(p.produto || '').trim();
+  if (!categoria || !produto) throw new Error('Informe a categoria e o nome do produto.');
+  const aba = aba_(planilha_(), ABA_PRODUTOS, CAB_PRODUTOS);
+  const existe = linhas_(planilha_(), ABA_PRODUTOS, CAB_PRODUTOS).some(function (r) {
+    return String(r[0]).toLowerCase() === categoria.toLowerCase() && String(r[1]).toLowerCase() === produto.toLowerCase();
+  });
+  if (!existe) aba.appendRow([texto_(categoria), texto_(produto), new Date()]);
+  return { categoria: categoria, produto: produto };
 }
 
 function alternarContagemIgnorada(c) {
