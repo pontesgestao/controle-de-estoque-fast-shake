@@ -33,8 +33,8 @@
   // contagem iniciada, para não mudar uma contagem em andamento.
   function buscarProdutosNovos() {
     const url = (window.CONFIG.URL_PLANILHA || '').trim();
-    if (!url) return;
-    fetch(url + (url.includes('?') ? '&' : '?') + 'acao=produtos')
+    if (!url) return Promise.resolve();
+    return fetch(url + (url.includes('?') ? '&' : '?') + 'acao=produtos')
       .then((r) => r.json())
       .then((json) => {
         if (!json || !Array.isArray(json.produtos)) return;
@@ -197,7 +197,7 @@
       return;
     }
 
-    document.getElementById('form-inicio').onsubmit = (e) => {
+    document.getElementById('form-inicio').onsubmit = async (e) => {
       e.preventDefault();
       const unidade = document.getElementById('unidade').value.trim();
       const responsavel = document.getElementById('responsavel').value.trim();
@@ -208,6 +208,12 @@
         return;
       }
       guardar(CHAVE_PERFIL, { unidade, responsavel });
+      // Busca de novo os produtos criados no painel, para a contagem já sair
+      // com a lista mais recente (espera no máximo 5 segundos).
+      const botao = e.target.querySelector('button[type=submit]');
+      botao.disabled = true;
+      botao.innerHTML = '<span class="carregando"></span> Preparando a contagem…';
+      await Promise.race([buscarProdutosNovos(), new Promise((ok) => setTimeout(ok, 5000))]);
       // Já deixa marcados os produtos que esta loja informou não trabalhar.
       categorias = montarCategorias(produtosNovos);
       totalItens = categorias.reduce((s, c) => s + c.itens.length, 0);
