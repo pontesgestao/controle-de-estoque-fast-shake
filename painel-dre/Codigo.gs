@@ -69,27 +69,15 @@ function carregarDados() {
     return d instanceof Date ? Utilities.formatDate(d, tz, padrao || "yyyy-MM-dd'T'HH:mm") : String(d || '');
   };
 
-  // Contagens (formato atual do app, com a coluna "Situação").
+  // Contagens: lê a aba "Contagens" e as abas "Contagens (formato antigo …)".
   const contagens = {};
-  const aba = ss.getSheetByName(ABA_CONTAGENS);
-  if (aba && aba.getLastRow() > 1) {
-    const valores = aba.getDataRange().getValues();
-    const cab = valores[0];
-    const col = function (nome) { return cab.indexOf(nome); };
-    const c = { data: col('Data/hora'), loja: col('Unidade'), resp: col('Responsável'), cat: col('Categoria'),
-      prod: col('Produto'), sit: col('Situação'), total: col('Total (unidades)'), id: col('ID') };
-    if (c.sit >= 0 && c.total >= 0 && c.id >= 0) {
-      for (let i = 1; i < valores.length; i++) {
-        const v = valores[i];
-        const id = String(v[c.id]);
-        if (!id) continue;
-        if (!contagens[id]) {
-          contagens[id] = { id: id, loja: String(v[c.loja]), data: fmt(v[c.data]), responsavel: String(v[c.resp]), itens: [] };
-        }
-        contagens[id].itens.push([String(v[c.cat]), String(v[c.prod]), String(v[c.sit]), v[c.total] === '' ? null : Number(v[c.total])]);
-      }
-    }
-  }
+  ss.getSheets().forEach(function (aba) {
+    const nome = aba.getName();
+    if ((nome !== ABA_CONTAGENS && nome.indexOf(ABA_CONTAGENS + ' (formato antigo') !== 0) || aba.getLastRow() < 2) return;
+    lerContagens_(aba.getDataRange().getValues(), fmt).forEach(function (c) {
+      if (!contagens[c.id]) contagens[c.id] = c;
+    });
+  });
 
   const ignoradas = linhas_(ss, ABA_IGNORADAS, CAB_IGNORADAS).map(function (r) { return String(r[0]); });
 
@@ -113,6 +101,42 @@ function carregarDados() {
     ignoradas: ignoradas, compras: compras, custos: custos, faturamento: faturamento,
     temChave: !!props_().getProperty('ANTHROPIC_API_KEY'),
   };
+}
+
+/**
+ * Converte as linhas de uma aba de contagens em contagens agrupadas por ID.
+ * Formato atual: tem as colunas "Situação" e "Total (unidades)".
+ * Formato anterior: tem "Quantidade" e "Medida". Só são aproveitadas as
+ * contagens em que tudo veio em unidades ("un"), ou seja, as enviadas pelo
+ * app novo antes de o script da planilha ser atualizado.
+ */
+function lerContagens_(valores, fmt) {
+  const cab = valores[0];
+  const col = function (nome) { return cab.indexOf(nome); };
+  const c = { data: col('Data/hora'), loja: col('Unidade'), resp: col('Responsável'), cat: col('Categoria'), prod: col('Produto'),
+    sit: col('Situação'), total: col('Total (unidades)'), qtd: col('Quantidade'), medida: col('Medida'), id: col('ID') };
+  const novo = c.sit >= 0 && c.total >= 0;
+  const antigo = !novo && c.qtd >= 0 && c.medida >= 0;
+  if (c.id < 0 || (!novo && !antigo)) return [];
+
+  const grupos = {};
+  const soUnidades = {};
+  for (let i = 1; i < valores.length; i++) {
+    const v = valores[i];
+    const id = String(v[c.id]);
+    if (!id) continue;
+    if (!grupos[id]) {
+      grupos[id] = { id: id, loja: String(v[c.loja]), data: fmt(v[c.data]), responsavel: String(v[c.resp]), itens: [] };
+      soUnidades[id] = true;
+    }
+    if (novo) {
+      grupos[id].itens.push([String(v[c.cat]), String(v[c.prod]), String(v[c.sit]), v[c.total] === '' ? null : Number(v[c.total])]);
+    } else {
+      if (String(v[c.medida]) !== 'un') soUnidades[id] = false;
+      grupos[id].itens.push([String(v[c.cat]), String(v[c.prod]), 'Contada', v[c.qtd] === '' ? 0 : Number(v[c.qtd])]);
+    }
+  }
+  return Object.keys(grupos).filter(function (id) { return novo || soUnidades[id]; }).map(function (id) { return grupos[id]; });
 }
 
 // ---------- Gravações ----------

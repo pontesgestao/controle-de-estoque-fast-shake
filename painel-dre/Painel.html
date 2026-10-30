@@ -253,6 +253,18 @@
     return f ? f.valor : null;
   }
 
+  // Primeiro dia de compras que pertence ao período que começa nesta
+  // contagem. Contagem feita à tarde ou à noite já inclui as compras do dia,
+  // então o período só passa a contar compras a partir do dia seguinte.
+  function diaDeCorte(c) {
+    const dia = c.data.slice(0, 10);
+    const hora = Number(c.data.slice(11, 13));
+    if (!(hora >= 14)) return dia;
+    const d = new Date(dia + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }
+
   // CMV do período entre duas contagens da mesma loja:
   // estoque inicial + compras − estoque final, produto a produto.
   function calcular(A, B) {
@@ -262,7 +274,8 @@
     const foraCat = new Set();
     [mA, mB].forEach((m) => Object.values(m).forEach((x) => { if (x.sit === 'Não contada') foraCat.add(x.cat); }));
 
-    const compras = dados.compras.filter((c) => c.loja === A.loja && c.dia >= diaA && c.dia < diaB);
+    const corteA = diaDeCorte(A), corteB = diaDeCorte(B);
+    const compras = dados.compras.filter((c) => c.loja === A.loja && c.dia >= corteA && c.dia < corteB);
     const comprasPorProduto = {};
     let outrasCompras = 0, comprasForaCalculo = 0;
     compras.forEach((c) => {

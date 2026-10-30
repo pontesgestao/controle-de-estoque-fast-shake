@@ -21,6 +21,8 @@ Painel separado do app de contagem. **Só você acessa**, entrando com a sua con
 ### Regras do cálculo
 
 - Compras entram no período quando a data da compra é **igual ou posterior** ao dia da contagem inicial e **anterior** ao dia da contagem final.
+- Contagem feita **a partir das 14h** já inclui as compras daquele dia na prateleira. Por isso, nesse caso, o corte passa para o dia seguinte: as compras do próprio dia ficam no período anterior.
+- O painel lê tanto a aba **Contagens** atual quanto as abas **Contagens (formato antigo …)**. Das antigas, só aproveita as contagens enviadas pelo app novo (tudo em unidades).
 - Categoria marcada como **"Não contei esta categoria hoje"** em qualquer uma das duas contagens fica **fora do cálculo** daquele período (produtos e compras), com aviso.
 - Produto marcado como **"Não trabalho com este produto"** conta como zero.
 - Itens da nota marcados como **"Fora do estoque"** (sacola, guardanapo, etc.) são guardados, mas não entram no CMV.
