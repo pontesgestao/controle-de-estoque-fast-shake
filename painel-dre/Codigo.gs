@@ -175,7 +175,7 @@ function alternarContagemIgnorada(c) {
 }
 
 /**
- * Grava uma compra: uma linha por item, as fotos no Google Drive e, para
+ * Grava uma compra: uma linha por item, as fotos/PDFs no Google Drive e, para
  * cada item de estoque, o novo custo por unidade (última compra).
  */
 function salvarCompra(compra) {
@@ -190,9 +190,10 @@ function salvarCompra(compra) {
     let fotos = '';
     if (compra.fotos && compra.fotos.length) {
       const pasta = pastaFotos_();
-      fotos = compra.fotos.map(function (b64, i) {
-        const blob = Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg',
-          compra.dia + ' ' + compra.loja + ' ' + (compra.fornecedor || 'nota') + ' ' + (i + 1) + '.jpg');
+      fotos = compra.fotos.map(function (arq, i) {
+        const pdf = arq.tipo === 'application/pdf';
+        const blob = Utilities.newBlob(Utilities.base64Decode(arq.dados), pdf ? 'application/pdf' : 'image/jpeg',
+          compra.dia + ' ' + compra.loja + ' ' + (compra.fornecedor || 'nota') + ' ' + (i + 1) + (pdf ? '.pdf' : '.jpg'));
         return pasta.createFile(blob).getUrl();
       }).join(' ');
     }
@@ -235,7 +236,7 @@ function excluirCompra(id) {
 // ---------- Leitura da nota com IA ----------
 
 /**
- * Envia as fotos da nota para o Claude e devolve os itens lidos, já
+ * Envia as fotos e/ou PDFs da nota para o Claude e devolve os itens lidos, já
  * associados aos produtos do catálogo da contagem.
  * catalogo: lista de "Categoria | Produto" (o índice é usado na resposta).
  */
@@ -245,7 +246,7 @@ function lerNota(fotos, catalogo) {
 
   const listaProdutos = catalogo.map(function (p, i) { return i + ' | ' + p; }).join('\n');
   const instrucoes =
-    'Você lê fotos de notas fiscais e cupons fiscais brasileiros de compras de uma sorveteria (Fast Shake) ' +
+    'Você lê fotos e PDFs de notas fiscais (DANFE) e cupons fiscais brasileiros de compras de uma sorveteria (Fast Shake) ' +
     'e extrai os itens comprados para dar entrada no estoque.\n\n' +
     'Para cada item da nota, informe:\n' +
     '- descricao: o texto do item como está na nota.\n' +
@@ -261,8 +262,11 @@ function lerNota(fotos, catalogo) {
     'valor total da nota. Deixe vazio (ou 0) o que não estiver legível; não invente valores.\n\n' +
     'Catálogo de produtos do estoque (número | categoria | produto):\n' + listaProdutos;
 
-  const conteudo = fotos.map(function (b64) {
-    return { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } };
+  const conteudo = fotos.map(function (arq) {
+    if (arq.tipo === 'application/pdf') {
+      return { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: arq.dados } };
+    }
+    return { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: arq.dados } };
   });
   conteudo.push({ type: 'text', text: 'Extraia os itens desta nota/cupom fiscal.' });
 
@@ -328,7 +332,7 @@ function lerNota(fotos, catalogo) {
     throw new Error('Erro ao ler a nota: ' + msg);
   }
   if (json.stop_reason === 'refusal') throw new Error('A IA não conseguiu processar esta imagem. Lance os itens manualmente.');
-  if (json.stop_reason === 'max_tokens') throw new Error('A nota é longa demais para uma leitura só. Envie em partes (menos fotos por vez).');
+  if (json.stop_reason === 'max_tokens') throw new Error('A nota é longa demais para uma leitura só. Envie em partes (menos arquivos por vez).');
 
   const texto = (json.content || []).filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('');
   return JSON.parse(texto);

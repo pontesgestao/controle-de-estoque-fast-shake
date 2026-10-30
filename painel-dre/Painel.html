@@ -101,7 +101,12 @@
 
   /* Compras */
   .fotos { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 14px; }
-  .fotos img { height: 90px; border-radius: 10px; border: 2px solid var(--borda); }
+  .fotos .arquivo { position: relative; }
+  .fotos img { height: 90px; border-radius: 10px; border: 2px solid var(--borda); display: block; }
+  .fotos .pdf { height: 90px; min-width: 90px; max-width: 180px; padding: 10px; border-radius: 10px; border: 2px solid var(--borda); background: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: .75rem; font-weight: 700; color: var(--suave); text-align: center; word-break: break-all; }
+  .fotos .pdf strong { font-size: 1rem; color: var(--erro); }
+  .fotos .remover { position: absolute; top: -8px; right: -8px; width: 26px; height: 26px; border-radius: 50%; border: 0; background: var(--texto); color: #fff; font-weight: 800; line-height: 1; }
   .itens-nota td { padding: 6px 4px; }
   .itens-nota input, .itens-nota select { min-height: 36px; padding: 4px 8px; }
   .itens-nota tr.revisar td { background: #FFFBEA; }
@@ -551,16 +556,19 @@
     conteudo.innerHTML = `
       <div class="cartao">
         <h2>Lançar compra</h2>
-        <p class="dica">Envie a foto da nota ou do cupom fiscal. A IA lê os itens e você confere antes de salvar. Cada item lançado atualiza o custo do produto (última compra).</p>
+        <p class="dica">Envie a foto ou o PDF da nota ou do cupom fiscal. A IA lê os itens e você confere antes de salvar. Cada item lançado atualiza o custo do produto (última compra).</p>
         <div class="grade-form">
           <label class="campo">Loja<select id="c-loja">${ls.map((l) => `<option ${l === n.loja ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
           <label class="campo">Data da compra<input type="date" id="c-dia" value="${esc(n.dia)}"></label>
           <label class="campo">Fornecedor<input type="text" id="c-fornecedor" value="${esc(n.fornecedor)}"></label>
           <label class="campo">Nº da nota/cupom<input type="text" id="c-documento" value="${esc(n.documento)}"></label>
         </div>
-        <label class="btn btn-secundario" style="width:max-content">📷 Escolher fotos da nota
-          <input type="file" id="c-fotos" accept="image/*" multiple hidden></label>
-        <div class="fotos">${n.fotos.map((f) => `<img src="data:image/jpeg;base64,${f}" alt="Foto da nota">`).join('')}</div>
+        <label class="btn btn-secundario" style="width:max-content">📎 Escolher fotos ou PDF da nota
+          <input type="file" id="c-fotos" accept="image/*,application/pdf,.pdf" multiple hidden></label>
+        <div class="fotos">${n.fotos.map((f, i) => `<div class="arquivo">${f.tipo === 'application/pdf'
+          ? `<div class="pdf"><strong>PDF</strong>${esc(f.nome)}</div>`
+          : `<img src="data:image/jpeg;base64,${f.dados}" alt="Foto da nota">`}
+          <button class="remover" data-remover-arquivo="${i}" aria-label="Remover arquivo">✕</button></div>`).join('')}</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-primario" id="c-ler" ${n.fotos.length ? '' : 'disabled'}>Ler nota com IA</button>
           <button class="btn btn-texto" id="c-manual">+ Adicionar item à mão</button>
@@ -608,7 +616,7 @@
           <tbody>${recentes.map((g) => `<tr>
             <td>${diaBR(g.dia)}</td><td>${esc(g.loja)}</td><td>${esc(g.fornecedor)}</td><td>${esc(g.documento)}</td>
             <td class="r num">${g.itens}</td><td class="r num">${dinheiro(g.valor)}</td>
-            <td style="white-space:nowrap">${g.fotos ? g.fotos.split(' ').map((u, i) => `<a class="btn-texto" href="${esc(u)}" target="_blank" rel="noopener">foto ${i + 1}</a>`).join(' ') : ''}
+            <td style="white-space:nowrap">${g.fotos ? g.fotos.split(' ').map((u, i) => `<a class="btn-texto" href="${esc(u)}" target="_blank" rel="noopener">arquivo ${i + 1}</a>`).join(' ') : ''}
               <button class="btn btn-perigo" data-excluir="${esc(g.id)}">Excluir</button></td></tr>`).join('')}</tbody>
         </table></div>` : '<div class="vazio">Nenhuma compra lançada ainda.</div>'}
       </div>`;
@@ -624,9 +632,15 @@
     document.getElementById('c-fotos').onchange = async (e) => {
       lerCampos();
       const arquivos = [...e.target.files];
-      for (const a of arquivos) n.fotos.push(await reduzirFoto(a));
+      for (const a of arquivos) {
+        try { n.fotos.push(await prepararArquivo(a)); }
+        catch (err) { toast(err.message, true); }
+      }
       render();
     };
+    conteudo.querySelectorAll('[data-remover-arquivo]').forEach((b) => {
+      b.onclick = () => { lerCampos(); n.fotos.splice(Number(b.dataset.removerArquivo), 1); render(); };
+    });
     document.getElementById('c-manual').onclick = () => {
       lerCampos();
       n.itens.push({ descricao: '', produto: '', embalagens: '', porEmbalagem: '', valor: '' });
@@ -714,6 +728,19 @@
         try { await chamar('excluirCompra', b.dataset.excluir); await recarregar(); toast('Compra excluída'); }
         catch (err) { toast(err.message, true); }
       };
+    });
+  }
+
+  // PDF vai como está (até 10 MB); foto é reduzida antes de enviar.
+  function prepararArquivo(arquivo) {
+    const pdf = arquivo.type === 'application/pdf' || /\.pdf$/i.test(arquivo.name);
+    if (!pdf) return reduzirFoto(arquivo).then((dados) => ({ tipo: 'image/jpeg', nome: arquivo.name, dados }));
+    if (arquivo.size > 10 * 1024 * 1024) return Promise.reject(new Error(`O PDF ${arquivo.name} tem mais de 10 MB.`));
+    return new Promise((ok, falha) => {
+      const leitor = new FileReader();
+      leitor.onload = () => ok({ tipo: 'application/pdf', nome: arquivo.name, dados: String(leitor.result).split(',')[1] });
+      leitor.onerror = () => falha(leitor.error);
+      leitor.readAsDataURL(arquivo);
     });
   }
 
