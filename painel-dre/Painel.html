@@ -993,8 +993,25 @@
     };
   }
 
+  // Versão mínima do Codigo.gs (a parte colada no Google) que esta tela usa.
+  const VERSAO_SERVIDOR_MINIMA = 3;
+  function avisoAtualizacao() {
+    const antigo = document.getElementById('aviso-versao');
+    if (antigo) antigo.remove();
+    if ((dados.versaoServidor || 0) >= VERSAO_SERVIDOR_MINIMA) return;
+    const div = document.createElement('div');
+    div.id = 'aviso-versao';
+    div.className = 'alerta erro';
+    div.style.cssText = 'max-width:1180px;margin:16px auto 0;';
+    div.innerHTML = '<strong>Atualize o código do painel no Google</strong>Copie o arquivo ' +
+      '<a href="https://github.com/pontesgestao/controle-de-estoque-fast-shake/blob/painel-dre/painel-dre/Codigo.gs" target="_blank" rel="noopener">Codigo.gs</a>, ' +
+      'cole no projeto do painel e publique uma nova versão (Implantar → Gerenciar implantações → Editar → Nova versão). Algumas funções podem falhar até lá.';
+    document.querySelector('main').before(div);
+  }
+
   async function recarregar() {
     dados = await chamar('carregarDados');
+    avisoAtualizacao();
     document.getElementById('sub-topo').textContent = `${dados.contagens.length} contagens · ${new Set(dados.compras.map((c) => c.id)).size} compras`;
     render();
   }

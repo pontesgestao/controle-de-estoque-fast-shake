@@ -25,10 +25,24 @@ const CAB_PRODUTOS = ['Categoria', 'Produto', 'Criado em'];
 const MODELO_IA = 'claude-opus-5-5';
 const PASTA_FOTOS = 'Fast Shake - Notas fiscais';
 
+// Versão desta parte do código (a que fica colada no Google). A tela avisa
+// quando precisa de uma versão mais nova.
+const VERSAO_SERVIDOR = 3;
+
+// A tela do painel vem do GitHub a cada abertura, assim as melhorias chegam
+// sem precisar colar nada. Sem conexão com o GitHub, usa a cópia local "Painel".
+const URL_TELA = 'https://raw.githubusercontent.com/pontesgestao/controle-de-estoque-fast-shake/painel-dre/painel-dre/Painel.html';
+
 function doGet() {
-  return HtmlService.createHtmlOutputFromFile('Painel')
-    .setTitle('Painel DRE · Fast Shake')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  let saida;
+  try {
+    const r = UrlFetchApp.fetch(URL_TELA, { muteHttpExceptions: true, headers: { 'Cache-Control': 'no-cache' } });
+    if (r.getResponseCode() !== 200) throw new Error('HTTP ' + r.getResponseCode());
+    saida = HtmlService.createHtmlOutput(r.getContentText('UTF-8'));
+  } catch (e) {
+    saida = HtmlService.createHtmlOutputFromFile('Painel');
+  }
+  return saida.setTitle('Painel DRE · Fast Shake').addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
 // ---------- Configuração ----------
@@ -103,6 +117,7 @@ function carregarDados() {
     contagens: Object.keys(contagens).map(function (k) { return contagens[k]; }),
     ignoradas: ignoradas, produtosNovos: produtosNovos, compras: compras, custos: custos, faturamento: faturamento,
     temChave: !!props_().getProperty('ANTHROPIC_API_KEY'),
+    versaoServidor: VERSAO_SERVIDOR,
   };
 }
 

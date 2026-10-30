@@ -63,9 +63,11 @@ Na aba **Custos**, preencha o custo por unidade dos produtos (os sem custo apare
 2. **Durante a semana:** lance as notas e cupons na aba **Compras**.
 3. **Segunda seguinte:** a nova contagem fecha o período. Na aba **Resultado**, digite o faturamento da loja no período e veja o CMV %.
 
-## Atualizar o painel
+## Atualizações
 
-Ao receber uma versão nova destes arquivos, cole-os de novo no projeto e use **Implantar → Gerenciar implantações → Editar → Nova versão**. O link continua o mesmo.
+A **tela** do painel (`Painel.html`) é carregada do GitHub toda vez que você abre o link. Por isso, as melhorias de tela, gráficos, compras e leitura de notas chegam sozinhas, sem colar nada. O arquivo `Painel` colado no Google fica só como reserva, para quando o GitHub não responder.
+
+Só o **`Codigo.gs`** precisa ser colado de novo, e raramente. Quando for necessário, o painel mostra um aviso vermelho no topo. Nesse caso, cole o arquivo novo e use **Implantar → Gerenciar implantações → Editar → Nova versão**. O link continua o mesmo.
 
 ## Planilha
 
