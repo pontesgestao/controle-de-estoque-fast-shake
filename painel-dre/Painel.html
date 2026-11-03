@@ -388,7 +388,7 @@
                    value="${x.faturamento != null ? qtd(x.faturamento) : ''}" data-ini="${esc(x.A.id)}" data-fim="${esc(x.B.id)}"
                    data-dia-ini="${x.diaA}" data-dia-fim="${x.diaB}" aria-label="Faturamento do período"></td>
               <td class="r num">${dinheiro(x.ei)}</td><td class="r num">${dinheiro(x.compras)}</td><td class="r num">${dinheiro(x.ef)}</td>
-              <td class="r num"><strong>${dinheiro(x.cmv)}</strong></td>
+              <td class="r num"><strong>${dinheiro(x.cmv)}</strong>${x.semCusto.length ? '<br><span class="tag erro">incompleto</span>' : ''}</td>
               <td class="r num"><strong>${pct(x.cmvPct)}</strong></td>
               <td>${x.foraCat.length || x.semCusto.length || x.negativos.length ? '<span class="tag alerta">ver alertas</span>' : ''}</td>
             </tr>`).join('')}</tbody>
@@ -424,9 +424,9 @@
   function detalhePeriodo(p) {
     const cats = Object.entries(p.porCategoria).sort((a, b) => b[1] - a[1]);
     const alertas = [];
+    if (p.semCusto.length) alertas.push(['erro', `${p.semCusto.length} produto(s) sem custo cadastrado: o CMV está incompleto`, `Esses produtos entram no estoque valendo R$ 0, o que distorce o estoque inicial, o final e o CMV. Cadastre os custos na aba Custos (vale também para este período): ${p.semCusto.slice(0, 12).join(', ')}${p.semCusto.length > 12 ? '…' : ''}.`]);
     if (p.faturamento == null) alertas.push(['', 'Faturamento não informado', 'Digite o faturamento do período na tabela acima para calcular o CMV %.']);
     if (p.foraCat.length) alertas.push(['', 'Categorias fora do cálculo', `${p.foraCat.join(', ')} não foram contadas em uma das contagens. Os produtos e as compras delas (${dinheiro(p.comprasForaCalculo)}) ficaram fora do CMV.`]);
-    if (p.semCusto.length) alertas.push(['erro', `${p.semCusto.length} produto(s) sem custo cadastrado`, `Foram valorizados a R$ 0: ${p.semCusto.slice(0, 12).join(', ')}${p.semCusto.length > 12 ? '…' : ''}. Cadastre na aba Custos.`]);
     if (p.negativos.length) alertas.push(['erro', `${p.negativos.length} produto(s) com consumo negativo`, `O estoque final ficou maior que o inicial + compras em: ${p.negativos.slice(0, 10).map((n) => n.prod).join(', ')}. Provável compra não lançada ou erro de contagem.`]);
     if (p.outrasCompras) alertas.push(['', 'Compras fora do estoque', `${dinheiro(p.outrasCompras)} em itens marcados como "fora do estoque" não entram no CMV.`]);
 
@@ -435,7 +435,8 @@
         <span class="dica" style="margin:0">Contado por ${p.A.responsavel === p.B.responsavel ? esc(p.A.responsavel) : esc(p.A.responsavel) + ' e ' + esc(p.B.responsavel)}</span></div>
       <div class="kpis">
         <div class="kpi"><div class="rotulo">Faturamento</div><div class="valor num">${dinheiro(p.faturamento)}</div></div>
-        <div class="kpi"><div class="rotulo">CMV</div><div class="valor num">${dinheiro(p.cmv)}</div></div>
+        <div class="kpi"><div class="rotulo">CMV</div><div class="valor num">${dinheiro(p.cmv)}</div>
+          ${p.semCusto.length ? `<div class="detalhe" style="color:var(--erro);font-weight:800">Incompleto: ${p.semCusto.length} produto(s) sem custo</div>` : ''}</div>
         <div class="kpi destaque"><div class="rotulo">CMV %</div><div class="valor num">${pct(p.cmvPct)}</div><div class="detalhe">CMV ÷ faturamento</div></div>
         <div class="kpi"><div class="rotulo">Lucro bruto</div><div class="valor num">${dinheiro(p.lucroBruto)}</div><div class="detalhe">Faturamento − CMV</div></div>
       </div>
@@ -880,6 +881,49 @@
   }
 
   // ----- Custos -----
+  // Custo digitado para produto sem custo vira o "custo inicial": vale para
+  // trás (todas as contagens). Para produto que já tem custo, é uma correção
+  // que vale a partir de hoje.
+  const DESDE_INICIAL = '2000-01-01';
+  function registroCusto(c, valor) {
+    const inicial = !custoAtual(c.chave);
+    return { categoria: c.categoria, produto: c.produto, custo: valor,
+      desde: inicial ? DESDE_INICIAL : hoje(), origem: inicial ? 'Custo inicial' : 'Correção manual' };
+  }
+  async function gravarCustos(registros) {
+    await chamar('salvarCustos', registros);
+    registros.forEach((r) => dados.custos.push({ ...r, compra: '' }));
+    prepararCustos();
+  }
+
+  // Aceita linhas copiadas de uma planilha: "Produto <tab> Custo",
+  // "Categoria <tab> Produto <tab> Custo" ou separadas por ";".
+  const semAcento = (t) => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  function lerListaCustos(texto, cat) {
+    const porChave = {}, porNome = {};
+    cat.forEach((c) => {
+      porChave[semAcento(c.categoria + ' | ' + c.produto)] = c;
+      (porNome[semAcento(c.produto)] = porNome[semAcento(c.produto)] || []).push(c);
+    });
+    const ok = [], erros = [];
+    texto.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).forEach((linha) => {
+      const partes = linha.split(/\t|;/).map((p) => p.trim()).filter(Boolean);
+      if (partes.length < 2) { erros.push(`${linha} (sem custo)`); return; }
+      const custo = numero(partes[partes.length - 1]);
+      if (custo == null || custo < 0) { erros.push(`${linha} (custo inválido)`); return; }
+      let alvo = null;
+      if (partes.length >= 3) alvo = porChave[semAcento(partes[0] + ' | ' + partes[1])];
+      if (!alvo) {
+        const nomes = porNome[semAcento(partes[partes.length - 2])] || [];
+        if (nomes.length === 1) alvo = nomes[0];
+        else if (nomes.length > 1) { erros.push(`${linha} (existe em mais de uma categoria: informe a categoria antes do nome)`); return; }
+      }
+      if (!alvo) { erros.push(`${linha} (produto não encontrado)`); return; }
+      ok.push({ alvo, custo });
+    });
+    return { ok, erros };
+  }
+
   function telaCustos() {
     const cat = catalogo();
     const linhas = cat.map((c) => ({ ...c, atual: custoAtual(c.chave) }));
@@ -888,43 +932,100 @@
       <div class="cartao">
         <div class="linha-titulo"><h2>Custo por unidade</h2>
           <input type="search" id="busca-custo" placeholder="Buscar produto…" style="max-width:260px"></div>
-        <p class="dica">O custo é atualizado sozinho a cada compra lançada. Use esta tela para o custo inicial ou para corrigir um valor.
+        <p class="dica">O custo é atualizado sozinho a cada compra lançada. Aqui você cadastra o <strong>custo inicial</strong> (vale também para as contagens anteriores) ou corrige um valor.
           ${semCusto ? `<span class="tag erro">${semCusto} produto(s) sem custo</span>` : '<span class="tag ok">todos os produtos têm custo</span>'}</p>
+        <p class="dica">Digite os custos na coluna <strong>Novo custo</strong> (Enter vai para o próximo) e clique em <strong>Salvar todos</strong> no fim.</p>
         <div class="tabela-wrap"><table>
-          <thead><tr><th>Produto</th><th class="r">Custo atual (un.)</th><th>Desde</th><th>Origem</th><th class="r">Novo custo (un.)</th><th></th></tr></thead>
+          <thead><tr><th>Produto</th><th class="r">Custo atual (un.)</th><th>Desde</th><th>Origem</th><th class="r">Novo custo (un.)</th></tr></thead>
           <tbody id="tabela-custos"></tbody>
         </table></div>
+        <div class="rodape-nota"><span class="dica" style="margin:0" id="custos-digitados"></span>
+          <button class="btn btn-azul" id="salvar-custos">Salvar todos</button></div>
+      </div>
+
+      <div class="cartao">
+        <h2>Colar uma lista de custos</h2>
+        <p class="dica">Copie de uma planilha duas colunas, <strong>Produto</strong> e <strong>Custo por unidade</strong>, e cole aqui.
+          Se o mesmo nome existir em mais de uma categoria (ex.: Maracujá), use três colunas: <strong>Categoria</strong>, <strong>Produto</strong> e <strong>Custo</strong>.</p>
+        <textarea id="lista-custos" rows="8" style="width:100%;border:2px solid var(--borda);border-radius:10px;padding:10px;font-family:inherit"
+          placeholder="Coberturas	Maracujá	11,75&#10;Copo 300 ml normal	0,18"></textarea>
+        <div id="previa-custos" style="margin-top:10px"></div>
+        <div style="display:flex;gap:10px;margin-top:10px"><button class="btn btn-secundario" id="conferir-lista">Conferir lista</button>
+          <button class="btn btn-azul" id="salvar-lista" hidden>Salvar custos da lista</button></div>
       </div>`;
+
     const corpo = document.getElementById('tabela-custos');
+    const digitados = {};
     let filtro = '';
+    const contarDigitados = () => {
+      const n = Object.values(digitados).filter((v) => numero(v) != null).length;
+      document.getElementById('custos-digitados').textContent = n ? `${n} custo(s) digitado(s) para salvar` : '';
+    };
     const desenhar = () => {
-      const ls = linhas.filter((l) => !filtro || (l.produto + ' ' + l.categoria).toLowerCase().includes(filtro))
+      const ls = linhas.filter((l) => !filtro || semAcento(l.produto + ' ' + l.categoria).includes(semAcento(filtro)))
         .sort((a, b) => (a.atual ? 1 : 0) - (b.atual ? 1 : 0));
       corpo.innerHTML = ls.map((l) => `<tr data-chave="${esc(l.chave)}">
         <td>${esc(l.produto)} <span class="tag">${esc(l.categoria)}</span></td>
         <td class="r num">${l.atual ? dinheiro(l.atual.custo) : '<span class="tag erro">sem custo</span>'}</td>
-        <td>${l.atual ? diaBR(l.atual.desde) : ''}</td><td class="dica" style="margin:0">${l.atual ? esc(l.atual.origem) : ''}</td>
-        <td class="r"><input type="text" inputmode="decimal" class="num" style="width:110px;text-align:right" placeholder="R$ 0,00"></td>
-        <td><button class="btn btn-secundario" data-salvar>Salvar</button></td></tr>`).join('');
+        <td>${l.atual ? (l.atual.desde === DESDE_INICIAL ? 'inicial' : diaBR(l.atual.desde)) : ''}</td>
+        <td class="dica" style="margin:0">${l.atual ? esc(l.atual.origem) : ''}</td>
+        <td class="r"><input type="text" inputmode="decimal" class="num" style="width:110px;text-align:right" placeholder="R$ 0,00"
+          value="${esc(digitados[l.chave] || '')}" enterkeyhint="next"></td></tr>`).join('');
     };
-    document.getElementById('busca-custo').oninput = (e) => { filtro = e.target.value.toLowerCase(); desenhar(); };
-    corpo.addEventListener('click', async (e) => {
-      const b = e.target.closest('[data-salvar]');
-      if (!b) return;
-      const tr = b.closest('tr');
-      const c = linhas.find((l) => l.chave === tr.dataset.chave);
-      const valor = numero(tr.querySelector('input').value);
-      if (valor == null || valor < 0) { toast('Digite o custo por unidade.', true); return; }
-      b.disabled = true;
-      try {
-        await chamar('salvarCusto', { categoria: c.categoria, produto: c.produto, custo: valor, desde: hoje() });
-        dados.custos.push({ categoria: c.categoria, produto: c.produto, custo: valor, desde: hoje(), origem: 'Manual', compra: '' });
-        prepararCustos();
-        c.atual = custoAtual(c.chave);
-        toast('Custo salvo');
-        desenhar();
-      } catch (err) { toast(err.message, true); b.disabled = false; }
+    document.getElementById('busca-custo').oninput = (e) => { filtro = e.target.value; desenhar(); };
+    corpo.addEventListener('input', (e) => {
+      const tr = e.target.closest('tr[data-chave]');
+      if (tr) { digitados[tr.dataset.chave] = e.target.value; contarDigitados(); }
     });
+    corpo.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const campos = [...corpo.querySelectorAll('input')];
+      const proximo = campos[campos.indexOf(e.target) + 1];
+      if (proximo) proximo.focus(); else e.target.blur();
+    });
+
+    document.getElementById('salvar-custos').onclick = async (e) => {
+      const registros = [];
+      const invalidos = [];
+      Object.entries(digitados).forEach(([k, v]) => {
+        if (String(v).trim() === '') return;
+        const valor = numero(v);
+        const c = linhas.find((l) => l.chave === k);
+        if (valor == null || valor < 0) invalidos.push(c.produto); else registros.push(registroCusto(c, valor));
+      });
+      if (invalidos.length) { toast('Valor inválido em: ' + invalidos.slice(0, 5).join(', '), true); return; }
+      if (!registros.length) { toast('Digite pelo menos um custo.', true); return; }
+      const b = e.currentTarget;
+      b.disabled = true;
+      b.innerHTML = '<span class="carregando"></span> Salvando…';
+      try {
+        await gravarCustos(registros);
+        toast(`${registros.length} custo(s) salvo(s)`);
+        render();
+      } catch (err) { toast('Não foi possível salvar: ' + err.message, true); b.disabled = false; b.textContent = 'Salvar todos'; }
+    };
+
+    let lida = null;
+    document.getElementById('conferir-lista').onclick = () => {
+      lida = lerListaCustos(document.getElementById('lista-custos').value, cat);
+      document.getElementById('previa-custos').innerHTML = `
+        <p class="dica" style="margin:0 0 6px"><span class="tag ok">${lida.ok.length} reconhecido(s)</span>
+          ${lida.erros.length ? `<span class="tag erro">${lida.erros.length} com problema</span>` : ''}</p>
+        ${lida.erros.length ? `<div class="alerta erro"><strong>Linhas que não serão salvas</strong>${lida.erros.slice(0, 30).map(esc).join('<br>')}</div>` : ''}`;
+      document.getElementById('salvar-lista').hidden = !lida.ok.length;
+    };
+    document.getElementById('salvar-lista').onclick = async (e) => {
+      if (!lida || !lida.ok.length) return;
+      const b = e.currentTarget;
+      b.disabled = true;
+      b.innerHTML = '<span class="carregando"></span> Salvando…';
+      try {
+        await gravarCustos(lida.ok.map((x) => registroCusto(x.alvo, x.custo)));
+        toast(`${lida.ok.length} custo(s) salvo(s)`);
+        render();
+      } catch (err) { toast('Não foi possível salvar: ' + err.message, true); b.disabled = false; b.textContent = 'Salvar custos da lista'; }
+    };
     desenhar();
   }
 
@@ -994,7 +1095,7 @@
   }
 
   // Versão mínima do Codigo.gs (a parte colada no Google) que esta tela usa.
-  const VERSAO_SERVIDOR_MINIMA = 3;
+  const VERSAO_SERVIDOR_MINIMA = 4;
   function avisoAtualizacao() {
     const antigo = document.getElementById('aviso-versao');
     if (antigo) antigo.remove();

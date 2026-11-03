@@ -27,7 +27,7 @@ const PASTA_FOTOS = 'Fast Shake - Notas fiscais';
 
 // Versão desta parte do código (a que fica colada no Google). A tela avisa
 // quando precisa de uma versão mais nova.
-const VERSAO_SERVIDOR = 3;
+const VERSAO_SERVIDOR = 4;
 
 // A tela do painel vem do GitHub a cada abertura, assim as melhorias chegam
 // sem precisar colar nada. Sem conexão com o GitHub, usa a cópia local "Painel".
@@ -180,6 +180,18 @@ function salvarCusto(c) {
   aba.appendRow([texto_(c.categoria), texto_(c.produto), Number(c.custo), c.desde ? new Date(c.desde + 'T12:00:00') : new Date(),
     'Manual', '', new Date()]);
   return true;
+}
+
+// Grava vários custos de uma vez (cadastro inicial ou lista colada).
+function salvarCustos(lista) {
+  if (!lista || !lista.length) return 0;
+  const aba = aba_(planilha_(), ABA_CUSTOS, CAB_CUSTOS);
+  const agora = new Date();
+  const linhas = lista.map(function (c) {
+    return [texto_(c.categoria), texto_(c.produto), Number(c.custo), new Date(c.desde + 'T12:00:00'), texto_(c.origem || 'Manual'), '', agora];
+  });
+  aba.getRange(aba.getLastRow() + 1, 1, linhas.length, CAB_CUSTOS.length).setValues(linhas);
+  return linhas.length;
 }
 
 // Cadastra um produto que ainda não existe na contagem (vindo de uma nota).
