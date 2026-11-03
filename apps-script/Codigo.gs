@@ -9,6 +9,8 @@ const EMAIL_AVISO = '';
 const ABA_RESUMO = 'Resumo';
 const ABA_CONTAGENS = 'Contagens';
 const ABA_PRODUTOS_NOVOS = 'Produtos novos';
+const ABA_CUSTOS = 'Custos';
+const CABECALHO_CUSTOS = ['Categoria', 'Produto', 'Custo por unidade (R$)', 'Vigente desde', 'Origem', 'ID compra', 'Registrado em'];
 const CABECALHO_RESUMO = ['Data/hora', 'Unidade', 'Responsável', 'Itens contados', 'Itens zerados', 'Observações',
   'Início da contagem', 'ID', 'Categorias não contadas'];
 const CABECALHO_CONTAGENS = ['Data/hora', 'Unidade', 'Responsável', 'Categoria', 'Produto', 'Situação',
@@ -19,6 +21,7 @@ function doPost(e) {
   lock.waitLock(20000);
   try {
     const d = JSON.parse(e.postData.contents);
+    if (d && d.acao === 'custos') return responder(salvarCustosFormulario_(d));
     if (!d || !d.id || !d.unidade || !Array.isArray(d.itens) || d.itens.length === 0) {
       return responder({ ok: false, erro: 'Dados incompletos' });
     }
@@ -71,6 +74,9 @@ function doPost(e) {
 // "Produtos novos"), para o app de contagem incluir na lista.
 // Sem parâmetro, só confirma que o endereço funciona.
 function doGet(e) {
+  if (e && e.parameter && e.parameter.acao === 'custos-pendentes') {
+    return responder({ ok: true, produtos: produtosSemCusto_(SpreadsheetApp.getActiveSpreadsheet()) });
+  }
   if (e && e.parameter && e.parameter.acao === 'produtos') {
     const aba = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ABA_PRODUTOS_NOVOS);
     const produtos = !aba || aba.getLastRow() < 2 ? [] : aba.getRange(2, 1, aba.getLastRow() - 1, 2).getValues()
@@ -79,6 +85,69 @@ function doGet(e) {
     return responder({ ok: true, produtos: produtos });
   }
   return responder({ ok: true, app: 'Contagem Fast Shake' });
+}
+
+// ---------- Formulário de custos (custos.html) ----------
+
+// Produtos das contagens e da aba "Produtos novos" que ainda não têm
+// nenhum custo na aba "Custos". Devolve só os nomes, nunca valores.
+function produtosSemCusto_(ss) {
+  const lista = [];
+  const vistos = {};
+  const incluir = function (cat, prod) {
+    cat = String(cat).trim();
+    prod = String(prod).trim();
+    const k = cat + '|' + prod;
+    if (cat && prod && !vistos[k]) { vistos[k] = true; lista.push({ categoria: cat, produto: prod }); }
+  };
+  const contagens = ss.getSheetByName(ABA_CONTAGENS);
+  if (contagens && contagens.getLastRow() > 1) {
+    contagens.getRange(2, 4, contagens.getLastRow() - 1, 2).getValues().forEach(function (r) { incluir(r[0], r[1]); });
+  }
+  const novos = ss.getSheetByName(ABA_PRODUTOS_NOVOS);
+  if (novos && novos.getLastRow() > 1) {
+    novos.getRange(2, 1, novos.getLastRow() - 1, 2).getValues().forEach(function (r) { incluir(r[0], r[1]); });
+  }
+  const comCusto = {};
+  const custos = ss.getSheetByName(ABA_CUSTOS);
+  if (custos && custos.getLastRow() > 1) {
+    custos.getRange(2, 1, custos.getLastRow() - 1, 2).getValues().forEach(function (r) {
+      comCusto[String(r[0]).trim() + '|' + String(r[1]).trim()] = true;
+    });
+  }
+  return lista.filter(function (p) { return !comCusto[p.categoria + '|' + p.produto]; });
+}
+
+// Grava os custos enviados pelo formulário como custo inicial. Só aceita
+// produtos que ainda não têm custo, para o formulário nunca alterar um
+// custo que já existe.
+function salvarCustosFormulario_(d) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const pendentes = {};
+  produtosSemCusto_(ss).forEach(function (p) { pendentes[p.categoria + '|' + p.produto] = true; });
+  const origem = 'Formulário de custos' + (d.nome ? ' (' + String(d.nome).slice(0, 60) + ')' : '');
+  const agora = new Date();
+  const desde = new Date('2000-01-01T12:00:00');
+  const linhas = [];
+  let ignorados = 0;
+  (Array.isArray(d.custos) ? d.custos : []).forEach(function (c) {
+    const k = String(c.categoria).trim() + '|' + String(c.produto).trim();
+    const custo = Number(c.custo);
+    if (!pendentes[k] || !isFinite(custo) || custo < 0 || custo > 100000) { ignorados++; return; }
+    delete pendentes[k];
+    linhas.push([texto(c.categoria), texto(c.produto), Math.round(custo * 10000) / 10000, desde, texto(origem), '', agora]);
+  });
+  if (linhas.length) {
+    let aba = ss.getSheetByName(ABA_CUSTOS);
+    if (!aba) {
+      aba = ss.insertSheet(ABA_CUSTOS);
+      aba.getRange(1, 1, 1, CABECALHO_CUSTOS.length).setValues([CABECALHO_CUSTOS])
+        .setFontWeight('bold').setBackground('#273393').setFontColor('#FFFFFF').setWrap(true);
+      aba.setFrozenRows(1);
+    }
+    aba.getRange(aba.getLastRow() + 1, 1, linhas.length, CABECALHO_CUSTOS.length).setValues(linhas);
+  }
+  return { ok: true, gravados: linhas.length, ignorados: ignorados };
 }
 
 // Rode uma vez pelo editor para criar as abas formatadas.

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ED4400">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Custos dos Produtos · Fast Shake</title>
+  <link rel="icon" type="image/png" href="img/icon-192.png">
+  <link rel="apple-touch-icon" href="img/icon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/estilo.css?v=13">
+  <style>
+    .custo-item { background: var(--cartao); border-radius: 14px; box-shadow: var(--sombra); padding: 12px; border: 2px solid transparent; display: flex; flex-direction: column; gap: 8px; }
+    .custo-item.preenchido { border-color: #CFE9D9; background: #FBFFFC; }
+    .custo-linha { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .campo-real { display: flex; align-items: center; border: 2px solid var(--borda); border-radius: 12px; background: #fff; overflow: hidden; flex-shrink: 0; }
+    .campo-real:focus-within { border-color: var(--laranja); }
+    .campo-real span { padding: 0 6px 0 10px; font-weight: 800; color: var(--texto-suave); }
+    .campo-real input { width: 92px; height: 46px; border: 0; outline: none; font-size: 1.1rem; font-weight: 800; text-align: right; padding-right: 10px; background: transparent; }
+    .link-calc { align-self: flex-start; border: 0; background: none; color: var(--azul); font-size: .82rem; font-weight: 700; text-decoration: underline; padding: 2px 0; }
+    .calc { display: none; flex-direction: column; gap: 8px; padding: 10px; border-radius: 10px; background: var(--fundo); font-size: .88rem; }
+    .custo-item.calculando .calc { display: flex; }
+    .calc .custo-linha input { width: 96px; height: 42px; border: 2px solid var(--borda); border-radius: 10px; text-align: center; font-weight: 800; font-size: 16px; outline: none; }
+    .calc .custo-linha input:focus { border-color: var(--laranja); }
+    .grupo-titulo { font-family: 'Fredoka', sans-serif; color: var(--azul); font-size: 1.2rem; margin: 18px 0 8px; }
+    .grupo-titulo:first-child { margin-top: 0; }
+    .lista-custos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .estado { text-align: center; padding: 40px 16px; color: var(--texto-suave); display: flex; flex-direction: column; gap: 14px; align-items: center; }
+    .carregando.escuro { border-color: rgba(39,51,147,.2); border-top-color: var(--azul); }
+  </style>
+</head>
+<body>
+  <main id="app" class="app" aria-live="polite"></main>
+  <noscript>Ative o JavaScript para preencher os custos.</noscript>
+  <script src="js/config.js?v=13"></script>
+  <script src="js/produtos.js?v=13"></script>
+  <script src="js/custos.js?v=1"></script>
+</body>
+</html>
