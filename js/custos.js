@@ -83,11 +83,13 @@
           <h1>Custos dos produtos</h1>
           <p>Informe quanto custa <strong>1 unidade</strong> de cada produto, do jeito que a loja conta: 1 frasco, 1 galão, 1 copo, 1 lata, 1 pacotinho…</p>
         </div>
+        <div class="alerta-envio" id="alerta-envio" hidden></div>
         <div class="cartao">
           <div class="campo"><label for="nome">Seu nome</label>
             <input id="nome" type="text" autocomplete="name" value="${esc(nome)}" placeholder="Quem está preenchendo"></div>
           <p class="aviso">Não sabe o preço de 1 unidade? Toque em <strong>Calcular pela caixa</strong> e informe o preço da caixa (ou fardo, ou pacote) e quantas unidades vêm nela.
             Pode preencher só os que souber e enviar; os outros continuam aqui para depois.</p>
+          <p class="aviso"><strong>Importante:</strong> os valores só chegam quando você toca no botão laranja <strong>Enviar</strong>, lá embaixo.</p>
         </div>
         <div id="grupos">${grupos.map((g) => `
           <h2 class="grupo-titulo">${esc(g.nome)}</h2>
@@ -124,6 +126,9 @@
       botao.disabled = !preenchidos;
       botao.textContent = preenchidos ? `Enviar ${preenchidos} custo(s)` : 'Enviar custos';
       status.textContent = `${preenchidos} de ${produtos.length} produtos preenchidos`;
+      const alerta = document.getElementById('alerta-envio');
+      alerta.hidden = !preenchidos;
+      alerta.innerHTML = `<strong>${preenchidos} custo(s) digitado(s) ainda não enviado(s).</strong> Toque em <strong>Enviar</strong> para eles chegarem.`;
     }
 
     function gravar(li, valor) {
@@ -197,6 +202,12 @@
 
     atualizar();
   }
+
+  // Avisa antes de sair da página com custos digitados e não enviados.
+  window.addEventListener('beforeunload', (e) => {
+    const pendentes = produtos.some((p) => lerValor(rascunho[chave(p)]) != null);
+    if (pendentes) { e.preventDefault(); e.returnValue = ''; }
+  });
 
   carregarPendentes();
 })();
