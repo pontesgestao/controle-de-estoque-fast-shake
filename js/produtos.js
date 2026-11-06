@@ -3,6 +3,15 @@
 // medida: unidade em que o gerente conta o item.
 // avulsas: true mostra um campo extra para unidades soltas (ex.: fardo aberto).
 
+// Produtos que mudaram de categoria ou de nome: "antigo" → "novo", no
+// formato "Categoria | Produto". O painel e a planilha usam esta lista para
+// continuar reconhecendo o produto nas contagens e custos antigos.
+window.RENOMEADOS = {
+  'Descartáveis | Copo sundae': 'Copos | Copo sundae',
+  'Descartáveis | Copo descartável': 'Copos | Copo descartável',
+  'Coberturas Mini | Doce de leite': 'Coberturas Mini | Caramelo',
+};
+
 window.CATEGORIAS = [
   {
     nome: 'Coberturas',
@@ -47,16 +56,16 @@ window.CATEGORIAS = [
   {
     nome: 'Copos',
     itens: [
-      { nome: 'Copo 150 ml normal', medida: 'pacote' },
       { nome: 'Copo 300 ml normal', medida: 'pacote' },
       { nome: 'Copo 400 ml normal', medida: 'pacote' },
       { nome: 'Copo 500 ml normal', medida: 'pacote' },
       { nome: 'Copo 700 ml normal', medida: 'pacote' },
-      { nome: 'Copo 150 ml personalizado', medida: 'pacote' },
       { nome: 'Copo 300 ml personalizado', medida: 'pacote' },
       { nome: 'Copo 400 ml personalizado', medida: 'pacote' },
       { nome: 'Copo 500 ml personalizado', medida: 'pacote' },
       { nome: 'Copo 700 ml personalizado', medida: 'pacote' },
+      { nome: 'Copo descartável', medida: 'pacote' },
+      { nome: 'Copo sundae', medida: 'pacote' },
     ],
   },
   {
@@ -72,8 +81,6 @@ window.CATEGORIAS = [
     itens: [
       { nome: 'Colher grande', medida: 'caixa' },
       { nome: 'Colher pequena', medida: 'caixa' },
-      { nome: 'Copo descartável', medida: 'pacote' },
-      { nome: 'Copo sundae', medida: 'pacote' },
       { nome: 'Papel toalha', medida: 'pacote' },
       { nome: 'Pazinha de casquinha', medida: 'pacote' },
       { nome: 'Biju', medida: 'pacote' },
@@ -100,7 +107,7 @@ window.CATEGORIAS = [
       { nome: 'Variegato leitinho', medida: 'balde' },
       { nome: 'Variegato', medida: 'balde' },
       { nome: 'Ferrero Rocher', medida: 'caixa' },
-      { nome: 'Brigatta', medida: 'caixa' },
+      { nome: 'Leite em pó', medida: 'pacote' },
     ],
   },
   {
@@ -179,7 +186,8 @@ window.CATEGORIAS = [
       { nome: 'Blue Ice', medida: 'un' },
       { nome: 'Leite condensado', medida: 'un' },
       { nome: 'Tutti-frutti', medida: 'un' },
-      { nome: 'Doce de leite', medida: 'un' },
+      { nome: 'Caramelo', medida: 'un' },
+      { nome: 'Morango', medida: 'un' },
       { nome: 'Chocolate', medida: 'un' },
     ],
   },

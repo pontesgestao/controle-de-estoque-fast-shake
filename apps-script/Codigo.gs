@@ -10,6 +10,17 @@ const ABA_RESUMO = 'Resumo';
 const ABA_CONTAGENS = 'Contagens';
 const ABA_PRODUTOS_NOVOS = 'Produtos novos';
 const ABA_CUSTOS = 'Custos';
+// Produtos que mudaram de categoria ou de nome (mesma lista de js/produtos.js).
+const RENOMEADOS = {
+  'Descartáveis|Copo sundae': 'Copos|Copo sundae',
+  'Descartáveis|Copo descartável': 'Copos|Copo descartável',
+  'Coberturas Mini|Doce de leite': 'Coberturas Mini|Caramelo',
+};
+function chaveAtual_(cat, prod) {
+  const k = String(cat).trim() + '|' + String(prod).trim();
+  return RENOMEADOS[k] || k;
+}
+
 const CABECALHO_CUSTOS = ['Categoria', 'Produto', 'Custo por unidade (R$)', 'Vigente desde', 'Origem', 'ID compra', 'Registrado em'];
 const CABECALHO_RESUMO = ['Data/hora', 'Unidade', 'Responsável', 'Itens contados', 'Itens zerados', 'Observações',
   'Início da contagem', 'ID', 'Categorias não contadas'];
@@ -89,8 +100,9 @@ function doGet(e) {
 
 // ---------- Formulário de custos (custos.html) ----------
 
-// Produtos das contagens e da aba "Produtos novos" que ainda não têm
-// nenhum custo na aba "Custos". Devolve só os nomes, nunca valores.
+// Produtos da contagem mais recente de cada loja e da aba "Produtos novos"
+// que ainda não têm nenhum custo na aba "Custos". Devolve só os nomes,
+// nunca valores.
 function produtosSemCusto_(ss) {
   const lista = [];
   const vistos = {};
@@ -102,7 +114,20 @@ function produtosSemCusto_(ss) {
   };
   const contagens = ss.getSheetByName(ABA_CONTAGENS);
   if (contagens && contagens.getLastRow() > 1) {
-    contagens.getRange(2, 4, contagens.getLastRow() - 1, 2).getValues().forEach(function (r) { incluir(r[0], r[1]); });
+    const linhas = contagens.getRange(2, 1, contagens.getLastRow() - 1, 12).getValues();
+    const ultima = {};
+    linhas.forEach(function (r) {
+      const quando = r[0] instanceof Date ? r[0].getTime() : 0;
+      const loja = String(r[1]);
+      if (!ultima[loja] || quando > ultima[loja].quando) ultima[loja] = { quando: quando, id: String(r[11]) };
+    });
+    const ids = {};
+    Object.keys(ultima).forEach(function (l) { ids[ultima[l].id] = true; });
+    linhas.forEach(function (r) {
+      if (!ids[String(r[11])]) return;
+      const k = chaveAtual_(r[3], r[4]).split('|');
+      incluir(k[0], k[1]);
+    });
   }
   const novos = ss.getSheetByName(ABA_PRODUTOS_NOVOS);
   if (novos && novos.getLastRow() > 1) {
@@ -112,7 +137,7 @@ function produtosSemCusto_(ss) {
   const custos = ss.getSheetByName(ABA_CUSTOS);
   if (custos && custos.getLastRow() > 1) {
     custos.getRange(2, 1, custos.getLastRow() - 1, 2).getValues().forEach(function (r) {
-      comCusto[String(r[0]).trim() + '|' + String(r[1]).trim()] = true;
+      comCusto[chaveAtual_(r[0], r[1])] = true;
     });
   }
   return lista.filter(function (p) { return !comCusto[p.categoria + '|' + p.produto]; });
