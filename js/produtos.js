@@ -38,6 +38,13 @@ window.CATEGORIAS = [
       { nome: 'Leite condensado', medida: 'un' },
       { nome: 'Chocolate', medida: 'galão' },
       { nome: 'Morango', medida: 'galão' },
+      { nome: 'Açaí', medida: 'un' },
+      { nome: 'Açaí com leitinho', medida: 'un' },
+      { nome: 'Algodão doce', medida: 'un' },
+      { nome: 'Chiclete', medida: 'un' },
+      { nome: 'Floresta negra', medida: 'un' },
+      { nome: 'Goiaba', medida: 'un' },
+      { nome: 'Leite Ninho', medida: 'un' },
     ],
   },
   {
@@ -56,6 +63,7 @@ window.CATEGORIAS = [
   {
     nome: 'Copos',
     itens: [
+      { nome: 'Copo 200 ml normal', medida: 'pacote' },
       { nome: 'Copo 300 ml normal', medida: 'pacote' },
       { nome: 'Copo 400 ml normal', medida: 'pacote' },
       { nome: 'Copo 500 ml normal', medida: 'pacote' },
@@ -85,6 +93,9 @@ window.CATEGORIAS = [
       { nome: 'Pazinha de casquinha', medida: 'pacote' },
       { nome: 'Biju', medida: 'pacote' },
       { nome: 'Canudo', medida: 'pacote' },
+      { nome: 'Embalagem de casquinha', medida: 'pacote' },
+      { nome: 'Kit embalagem delivery', medida: 'un' },
+      { nome: 'Tubetes', medida: 'pacote' },
     ],
   },
   {
@@ -126,6 +137,9 @@ window.CATEGORIAS = [
       { nome: 'Energético tradicional', medida: 'fardo', avulsas: true },
       { nome: 'Água com gás', medida: 'fardo', avulsas: true },
       { nome: 'Água sem gás', medida: 'fardo', avulsas: true },
+      { nome: 'Energético zero', medida: 'fardo', avulsas: true },
+      { nome: 'Schweppes', medida: 'fardo', avulsas: true },
+      { nome: 'Heineken lata', medida: 'fardo', avulsas: true },
     ],
   },
   {
@@ -178,6 +192,11 @@ window.CATEGORIAS = [
       { nome: 'Tic Tac menta', medida: 'un' },
       { nome: 'Tic Tac azul', medida: 'un' },
       { nome: 'Docinho de leite Ninho', medida: 'un' },
+      { nome: 'Halls morango', medida: 'un' },
+      { nome: 'Trident hortelã', medida: 'un' },
+      { nome: 'Tic Tac laranja', medida: 'un' },
+      { nome: 'Tic Tac citrus', medida: 'un' },
+      { nome: 'Tic Tac morango cereja', medida: 'un' },
     ],
   },
   {
@@ -189,6 +208,8 @@ window.CATEGORIAS = [
       { nome: 'Caramelo', medida: 'un' },
       { nome: 'Morango', medida: 'un' },
       { nome: 'Chocolate', medida: 'un' },
+      { nome: 'Algodão doce', medida: 'un' },
+      { nome: 'Chiclete', medida: 'un' },
     ],
   },
   {
@@ -214,6 +235,17 @@ window.CATEGORIAS = [
       { nome: 'Sabão em pó', medida: 'balde' },
       { nome: 'Papel higiênico', medida: 'pacote grande' },
       { nome: 'Saco de lixo', medida: 'pacote' },
+      { nome: 'Esponja de lavar louça', medida: 'un' },
+    ],
+  },
+  {
+    nome: 'Mercearia',
+    itens: [
+      { nome: 'Açúcar', medida: 'pacote' },
+      { nome: 'Café', medida: 'pacote' },
+      { nome: 'Liga neutra', medida: 'pacote' },
+      { nome: 'Emulsificante', medida: 'pacote' },
+      { nome: 'Açaí (polpa)', medida: 'un' },
     ],
   },
 ];
