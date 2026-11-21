@@ -56,10 +56,10 @@ main { max-width: 760px; margin: 0 auto; padding: 8px 16px 130px; }
 .itens { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 @media (min-width: 620px) { .itens { grid-template-columns: 1fr 1fr; } }
 .produto {
-  background: var(--cartao); border-radius: 14px; box-shadow: var(--sombra); padding: 12px 12px 12px 14px;
-  display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 2px solid transparent;
+  background: var(--cartao); border-radius: 14px; padding: 12px 12px 12px 14px; border: 1px solid var(--borda);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
-.produto.na-sacola { border-color: var(--laranja-claro); }
+.produto.na-sacola { border-color: var(--laranja); }
 .produto .info { min-width: 0; }
 .produto .nome { font-weight: 800; line-height: 1.25; }
 .produto .detalhe { font-size: .82rem; color: var(--texto-suave); }
@@ -67,12 +67,13 @@ main { max-width: 760px; margin: 0 auto; padding: 8px 16px 130px; }
 .btn-add {
   flex-shrink: 0; min-width: 44px; height: 44px; border-radius: 12px; border: 0;
   background: var(--laranja); color: #fff; font-weight: 800; font-size: 1.4rem; line-height: 1; padding: 0 12px;
-  box-shadow: 0 3px 0 var(--laranja-escuro);
+  border-bottom: 3px solid var(--laranja-escuro);
 }
 .btn-add.texto { font-size: .9rem; }
 .qtd { flex-shrink: 0; display: flex; align-items: center; border: 2px solid var(--laranja-claro); border-radius: 12px; overflow: hidden; background: #fff; }
 .qtd button { width: 40px; height: 40px; border: 0; background: var(--laranja-claro); color: var(--laranja-escuro); font-size: 1.3rem; font-weight: 800; }
 .qtd span { min-width: 34px; text-align: center; font-weight: 800; }
+.versao { text-align: center; color: var(--texto-suave); font-size: .75rem; margin: 28px 0 0; }
 .vazio { text-align: center; color: var(--texto-suave); padding: 40px 12px; }
 
 /* ---------- Barra da sacola ---------- */

@@ -4,6 +4,7 @@
   'use strict';
 
   const WHATSAPP_LOJA = '5543988501854';
+  const VERSAO = 3;
   const CHAVE_SACOLA = 'fastshake-sacola-v1';
   const CHAVE_CLIENTE = 'fastshake-cliente-v1';
 
@@ -118,8 +119,10 @@
         ${DICAS_CATEGORIA[c] && !b ? `<p class="dica">${esc(DICAS_CATEGORIA[c])}</p>` : ''}
         <ul class="itens">${doGrupo.map(htmlProduto).join('')}</ul></section>`;
     }).join('');
-    lista.innerHTML = secoes || '<p class="vazio">Nenhum produto encontrado.</p>';
+    lista.innerHTML = (secoes || '<p class="vazio">Nenhum produto encontrado.</p>') +
+      `<p class="versao">Fast Shake · cardápio versão ${VERSAO}</p>`;
     atualizarBarra();
+    observarSecoes();
   }
 
   function atualizarBarra() {
@@ -173,27 +176,40 @@
     if (alvo) alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
-  // Destaca a categoria visível na barra.
-  let marcando = false;
-  window.addEventListener('scroll', () => {
-    if (marcando) return;
-    marcando = true;
-    requestAnimationFrame(() => {
-      marcando = false;
-      let atual = null;
-      document.querySelectorAll('.secao').forEach((s) => { if (s.getBoundingClientRect().top < 160) atual = s.id; });
-      document.querySelectorAll('#categorias button').forEach((btn) => {
-        const ativo = btn.dataset.cat === atual;
-        if (ativo && btn.getAttribute('aria-current') !== 'true') {
-          // Rola só a barra de categorias; scrollIntoView também mexeria na
-          // rolagem da página e interromperia o deslizar do dedo.
-          const nav = btn.parentElement;
-          nav.scrollTo({ left: btn.offsetLeft - (nav.clientWidth - btn.offsetWidth) / 2, behavior: 'smooth' });
-        }
-        btn.setAttribute('aria-current', String(ativo));
-      });
-    });
-  }, { passive: true });
+  // Destaca na barra a categoria que está no topo da tela. O navegador avisa
+  // (IntersectionObserver) só quando uma seção entra ou sai dessa faixa, então
+  // nada é calculado durante a rolagem e o dedo desliza livre no celular.
+  const navCategorias = document.getElementById('categorias');
+  const visiveis = new Set();
+  let categoriaAtual = null;
+  let centralizar = null;
+  const observador = 'IntersectionObserver' in window ? new IntersectionObserver((entradas) => {
+    entradas.forEach((e) => { if (e.isIntersecting) visiveis.add(e.target.id); else visiveis.delete(e.target.id); });
+    const primeira = [...lista.querySelectorAll('.secao')].find((s) => visiveis.has(s.id));
+    if (primeira) marcarCategoria(primeira.id);
+  }, { rootMargin: '-150px 0px -60% 0px' }) : null;
+
+  function marcarCategoria(id) {
+    if (id === categoriaAtual) return;
+    const antigo = navCategorias.querySelector('[aria-current="true"]');
+    if (antigo) antigo.removeAttribute('aria-current');
+    const btn = navCategorias.querySelector(`[data-cat="${id}"]`);
+    categoriaAtual = id;
+    if (!btn) return;
+    btn.setAttribute('aria-current', 'true');
+    // Centraliza o botão na barra um pouco depois, sem animação.
+    clearTimeout(centralizar);
+    centralizar = setTimeout(() => {
+      navCategorias.scrollLeft = btn.offsetLeft - (navCategorias.clientWidth - btn.offsetWidth) / 2;
+    }, 250);
+  }
+
+  function observarSecoes() {
+    if (!observador) return;
+    observador.disconnect();
+    visiveis.clear();
+    lista.querySelectorAll('.secao').forEach((s) => observador.observe(s));
+  }
 
   // ---------- Janela de opções ----------
   function abrirJanela(html) {
