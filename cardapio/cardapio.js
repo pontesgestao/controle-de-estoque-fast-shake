@@ -4,7 +4,9 @@
   'use strict';
 
   const WHATSAPP_LOJA = '5543988501854';
-  const VERSAO = 3;
+  const VERSAO = 4;
+  // Categorias escondidas por enquanto (apague da lista para voltar a mostrar).
+  const OCULTAS = ['Promoções', 'Casquinha e Cascão'];
   const CHAVE_SACOLA = 'fastshake-sacola-v1';
   const CHAVE_CLIENTE = 'fastshake-cliente-v1';
 
@@ -58,7 +60,7 @@
     setTimeout(() => t.remove(), 2400);
   }
 
-  const itens = window.CARDAPIO_ITENS;
+  const itens = window.CARDAPIO_ITENS.filter((i) => !OCULTAS.includes(i.categoria));
   const porCodigo = {};
   itens.forEach((i) => { porCodigo[i.codigo] = i; });
   const categorias = [];
