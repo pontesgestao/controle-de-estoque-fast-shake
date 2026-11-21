@@ -78,8 +78,8 @@ main { max-width: 760px; margin: 0 auto; padding: 8px 16px 130px; }
 /* ---------- Barra da sacola ---------- */
 .barra-sacola {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: rgba(255,246,239,.96);
-  backdrop-filter: blur(8px); border-top: 1px solid var(--borda);
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--fundo);
+  border-top: 1px solid var(--borda);
 }
 .barra-sacola button {
   display: flex; width: 100%; max-width: 728px; margin: 0 auto; align-items: center; justify-content: space-between; gap: 12px;

@@ -102,7 +102,7 @@
       ? `<div class="qtd"><button data-menos="${i.codigo}" aria-label="Diminuir ${esc(i.nome)}">−</button><span>${linha.qtd}</span>
          <button data-mais="${i.codigo}" aria-label="Aumentar ${esc(i.nome)}">+</button></div>`
       : `<button class="btn-add" data-add="${i.codigo}" aria-label="Adicionar ${esc(i.nome)}">+</button>`;
-    return `<li class="produto ${naSacola ? 'na-sacola' : ''}">
+    return `<li class="produto ${naSacola ? 'na-sacola' : ''}" data-codigo="${i.codigo}">
       <div class="info"><div class="nome">${esc(i.nome)}</div>
         ${i.opcoes ? `<div class="detalhe">${esc(DETALHE_OPCOES[i.opcoes] || '')}</div>` : ''}
         <div class="preco num">${brl(i.preco)}</div></div>
@@ -129,6 +129,16 @@
     document.getElementById('sacola-total').textContent = brl(valorTotal());
   }
 
+  // Redesenha só os cartões dos produtos que mudaram, sem refazer a lista toda
+  // (refazer 200 cartões durante a rolagem deixa o celular travado).
+  function atualizarProdutos(codigos) {
+    new Set(codigos).forEach((codigo) => {
+      const li = lista.querySelector(`li[data-codigo="${codigo}"]`);
+      if (li) li.outerHTML = htmlProduto(porCodigo[codigo]);
+    });
+    atualizarBarra();
+  }
+
   function adicionarSimples(codigo, delta) {
     let l = linhaSimples(codigo);
     if (!l && delta > 0) {
@@ -139,7 +149,7 @@
     l.qtd += delta;
     if (l.qtd <= 0) sacola = sacola.filter((x) => x !== l);
     salvarSacola();
-    desenharLista();
+    atualizarProdutos([codigo]);
   }
 
   lista.addEventListener('click', (e) => {
@@ -174,7 +184,12 @@
       document.querySelectorAll('.secao').forEach((s) => { if (s.getBoundingClientRect().top < 160) atual = s.id; });
       document.querySelectorAll('#categorias button').forEach((btn) => {
         const ativo = btn.dataset.cat === atual;
-        if (ativo && btn.getAttribute('aria-current') !== 'true') btn.scrollIntoView({ block: 'nearest', inline: 'center' });
+        if (ativo && btn.getAttribute('aria-current') !== 'true') {
+          // Rola só a barra de categorias; scrollIntoView também mexeria na
+          // rolagem da página e interromperia o deslizar do dedo.
+          const nav = btn.parentElement;
+          nav.scrollTo({ left: btn.offsetLeft - (nav.clientWidth - btn.offsetWidth) / 2, behavior: 'smooth' });
+        }
         btn.setAttribute('aria-current', String(ativo));
       });
     });
@@ -258,7 +273,7 @@
       sacola.push({ id: novoId(), codigo: item.codigo, qtd, precoUnit: r.precoUnit, escolhas: r.escolhas, obs: document.getElementById('obs-item').value.trim() });
       salvarSacola();
       dlg.close();
-      desenharLista();
+      atualizarProdutos([item.codigo]);
       toast(`${item.nome} na sacola`);
     };
     atualizar();
@@ -322,7 +337,7 @@
       if (e.target.closest('[data-remover]') || l.qtd <= 0) sacola = sacola.filter((x) => x !== l);
       salvarSacola();
       desenharLinhas();
-      desenharLista();
+      atualizarProdutos([l.codigo]);
     });
 
     const mostrarCampos = () => {
