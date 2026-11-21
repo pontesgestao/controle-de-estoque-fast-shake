@@ -4,7 +4,8 @@
   'use strict';
 
   const WHATSAPP_LOJA = '5543988501854';
-  const VERSAO = 4;
+  const VERSAO = 5;
+  const TELEFONE_LOJA = '(43) 98850-1854';
   // Categorias escondidas por enquanto (apague da lista para voltar a mostrar).
   const OCULTAS = ['Promoções', 'Casquinha e Cascão'];
   const CHAVE_SACOLA = 'fastshake-sacola-v1';
@@ -325,9 +326,11 @@
       </div>
       <div class="folha-rodape">
         <p class="erro" id="erro-sacola" hidden></p>
-        <button class="btn btn-whatsapp" id="enviar-whats">Enviar pedido pelo WhatsApp</button>
+        <button class="btn btn-whatsapp" id="enviar-whats">Enviar pedido em PDF pelo WhatsApp</button>
+        <p class="aviso" id="aviso-envio">Vai abrir o compartilhamento do celular: escolha o <strong>WhatsApp</strong> e a conversa da
+          <strong>Fast Shake ${TELEFONE_LOJA}</strong>.</p>
         <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-texto" id="baixar-pdf">Baixar PDF do pedido</button>
+          <button class="btn btn-texto" id="enviar-texto">Enviar só o texto do pedido</button>
           <button class="btn btn-texto" id="limpar-sacola" style="color:var(--erro)">Esvaziar sacola</button>
         </div>
       </div>`);
@@ -385,21 +388,67 @@
       return c;
     };
 
-    document.getElementById('enviar-whats').onclick = () => {
-      const c = validar();
-      if (!c) return;
+    // O PDF é refeito sempre que algo muda na sacola ou no formulário.
+    let arquivo = null;
+    let numeroPedido = null;
+    const invalidar = () => { arquivo = null; };
+    dlg.addEventListener('input', invalidar);
+    dlg.addEventListener('change', invalidar);
+    dlg.addEventListener('click', (e) => { if (e.target.closest('[data-lq],[data-remover]')) invalidar(); });
+    carregarLibs().catch(() => {});
+
+    const marcarEnviado = () => {
+      document.getElementById('limpar-sacola').textContent = 'Pedido enviado? Começar um novo';
+    };
+    const enviarTexto = (c) => {
       const url = `https://wa.me/${WHATSAPP_LOJA}?text=${encodeURIComponent(mensagem(c))}`;
       const aba = window.open(url, '_blank');
       if (!aba) location.href = url;
-      document.getElementById('limpar-sacola').textContent = 'Pedido enviado? Começar um novo';
+      marcarEnviado();
     };
-    document.getElementById('baixar-pdf').onclick = async (e) => {
+
+    const botaoEnviar = document.getElementById('enviar-whats');
+    const textoBotao = botaoEnviar.textContent;
+    botaoEnviar.onclick = async () => {
       const c = validar();
       if (!c) return;
-      const b = e.currentTarget;
-      b.disabled = true;
-      try { await pdfPedido(c); } catch (err) { toast('Não foi possível gerar o PDF. Verifique a internet.'); }
-      b.disabled = false;
+      const aviso = document.getElementById('aviso-envio');
+      if (!arquivo) {
+        botaoEnviar.disabled = true;
+        botaoEnviar.innerHTML = '<span class="carregando"></span> Preparando o PDF…';
+        try {
+          numeroPedido = numeroPedido || gerarNumero();
+          arquivo = await gerarPdf(c, numeroPedido);
+        } catch (err) {
+          botaoEnviar.disabled = false;
+          botaoEnviar.textContent = textoBotao;
+          aviso.innerHTML = '<span class="erro">Não foi possível gerar o PDF. Verifique a internet ou use "Enviar só o texto do pedido".</span>';
+          return;
+        }
+        botaoEnviar.disabled = false;
+        botaoEnviar.textContent = textoBotao;
+      }
+      const legenda = `Pedido ${numeroPedido} — ${c.nome} — Total ${brl(valorTotal())}`;
+      if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+        try {
+          await navigator.share({ files: [arquivo], text: legenda, title: 'Pedido Fast Shake' });
+          marcarEnviado();
+        } catch (e) {
+          // Se o celular não abriu o menu (demorou para gerar), um novo toque abre na hora.
+          if (e.name !== 'AbortError') {
+            botaoEnviar.textContent = 'Toque de novo para enviar o PDF';
+          }
+        }
+        return;
+      }
+      // Sem compartilhamento de arquivo (computador): baixa o PDF e abre a conversa com o texto.
+      baixarArquivo(arquivo);
+      aviso.innerHTML = 'O PDF foi baixado. A conversa com a loja abriu com o pedido em texto: se quiser, anexe o PDF nela.';
+      enviarTexto(c);
+    };
+    document.getElementById('enviar-texto').onclick = () => {
+      const c = validar();
+      if (c) enviarTexto(c);
     };
     document.getElementById('limpar-sacola').onclick = () => {
       if (!confirm('Esvaziar a sacola?')) return;
@@ -476,72 +525,133 @@
   }
   const limpar = (t) => String(t).replace(/[–—]/g, '-').replace(/[•]/g, '-');
 
-  async function pdfPedido(c) {
+  function gerarNumero() {
+    return Date.now().toString(36).slice(-5).toUpperCase();
+  }
+
+  function baixarArquivo(f) {
+    const url = URL.createObjectURL(f);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = f.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+
+  // PDF do pedido no mesmo padrão visual do app de contagem.
+  async function gerarPdf(c, numero) {
     await carregarLibs();
     const logo = await logoJpeg();
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const larg = doc.internal.pageSize.getWidth();
+    const alt = doc.internal.pageSize.getHeight();
     const m = 14;
-    if (logo) doc.addImage(logo.dados, 'JPEG', m, 12, 42, 42 * logo.prop);
+    const LARANJA = [237, 68, 0], AZUL = [39, 51, 147], TEXTO = [42, 26, 18], SUAVE = [122, 101, 88], FUNDO = [255, 246, 239];
+
+    if (logo) doc.addImage(logo.dados, 'JPEG', m, 10, 46, 46 * logo.prop);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.setTextColor(237, 68, 0);
+    doc.setTextColor(...LARANJA);
+    doc.setFontSize(22);
     doc.text('Pedido', larg - m, 20, { align: 'right' });
-    doc.setFontSize(10);
-    doc.setTextColor(42, 26, 18);
-    const info = [
+    doc.setFontSize(12);
+    doc.setTextColor(...AZUL);
+    doc.text('Nº ' + numero, larg - m, 27, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...SUAVE);
+    doc.text(new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }), larg - m, 33, { align: 'right' });
+    doc.text('Fast Shake · WhatsApp ' + TELEFONE_LOJA, larg - m, 38, { align: 'right' });
+
+    // Faixa laranja e azul da marca.
+    const yFaixa = 50;
+    doc.setFillColor(...LARANJA);
+    doc.rect(m, yFaixa, (larg - 2 * m) / 2, 2.2, 'F');
+    doc.setFillColor(...AZUL);
+    doc.rect(m + (larg - 2 * m) / 2, yFaixa, (larg - 2 * m) / 2, 2.2, 'F');
+
+    // Dados do cliente num quadro claro.
+    const dados = [
       ['Cliente', c.nome],
-      ['Receber', c.modo === 'entrega' ? 'Entrega: ' + c.endereco : 'Retirada na loja'],
+      ['Receber', c.modo === 'entrega' ? 'Entrega em: ' + c.endereco : 'Retirada na loja'],
       ['Pagamento', c.pagamento + (c.pagamento === 'Dinheiro' && c.troco ? ` (troco para ${c.troco})` : '')],
-      ['Data', new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })],
     ];
-    let y = 28;
-    info.forEach(([r, v]) => {
-      const linhas = doc.splitTextToSize(limpar(v), 70);
+    doc.setFontSize(10.5);
+    const linhasDados = dados.map(([r, v]) => [r, doc.splitTextToSize(limpar(v), larg - 2 * m - 40)]);
+    const altQuadro = 8 + linhasDados.reduce((s, [, l]) => s + 5.5 * l.length + 1.5, 0);
+    let y = yFaixa + 7;
+    doc.setFillColor(...FUNDO);
+    doc.roundedRect(m, y, larg - 2 * m, altQuadro, 3, 3, 'F');
+    y += 7;
+    linhasDados.forEach(([r, l]) => {
       doc.setFont('helvetica', 'normal');
-      doc.text(r + ':', larg - m - 96, y);
+      doc.setTextColor(...SUAVE);
+      doc.text(r, m + 5, y);
       doc.setFont('helvetica', 'bold');
-      doc.text(linhas, larg - m - 70, y);
-      y += 5 * linhas.length + 1.5;
+      doc.setTextColor(...TEXTO);
+      doc.text(l, m + 34, y);
+      y += 5.5 * l.length + 1.5;
     });
+
     doc.autoTable({
-      startY: Math.max(56, y + 4),
-      margin: { left: m, right: m },
+      startY: yFaixa + 7 + altQuadro + 6,
+      margin: { left: m, right: m, bottom: 18 },
       head: [['Qtd', 'Item', 'Valor']],
       body: sacola.map((l) => {
         const i = porCodigo[l.codigo];
         const det = l.escolhas.map((e) => `${e.titulo}: ${e.texto}`).concat(l.obs ? ['Obs.: ' + l.obs] : []);
-        return [String(l.qtd), limpar(i.nome + (det.length ? '\n' + det.join('\n') : '')), brl(l.precoUnit * l.qtd)];
+        return [{ content: l.qtd + 'x', styles: { fontStyle: 'bold', halign: 'center' } },
+          { content: limpar(i.nome), det: det.map(limpar) },
+          { content: brl(l.precoUnit * l.qtd), styles: { fontStyle: 'bold', halign: 'right' } }];
       }),
-      foot: [['', 'Total' + (c.modo === 'entrega' ? ' (+ taxa de entrega)' : ''), brl(valorTotal())]],
+      foot: [[{ content: '', styles: { fillColor: AZUL } },
+        { content: 'Total' + (c.modo === 'entrega' ? ' (+ taxa de entrega)' : ''), styles: { fillColor: AZUL } },
+        { content: brl(valorTotal()), styles: { halign: 'right', fillColor: AZUL } }]],
       theme: 'plain',
-      styles: { font: 'helvetica', fontSize: 10, textColor: [42, 26, 18], cellPadding: 2.5 },
-      headStyles: { fillColor: [237, 68, 0], textColor: 255, fontStyle: 'bold' },
-      footStyles: { fillColor: [39, 51, 147], textColor: 255, fontStyle: 'bold' },
-      columnStyles: { 0: { cellWidth: 14, halign: 'center' }, 2: { cellWidth: 32, halign: 'right' } },
-      alternateRowStyles: { fillColor: [255, 246, 239] },
+      styles: { font: 'helvetica', fontSize: 11, textColor: TEXTO, cellPadding: { top: 3, bottom: 3, left: 3, right: 3 }, valign: 'top' },
+      headStyles: { fillColor: LARANJA, textColor: 255, fontStyle: 'bold', fontSize: 10 },
+      footStyles: { textColor: 255, fontStyle: 'bold', fontSize: 12 },
+      columnStyles: { 0: { cellWidth: 16 }, 2: { cellWidth: 34 } },
+      alternateRowStyles: { fillColor: FUNDO },
+      // Detalhes (sabor, cobertura, adicionais) em letra menor e cinza, abaixo do nome.
+      didParseCell: (d) => {
+        if (d.section === 'body' && d.column.index === 1 && d.cell.raw.det && d.cell.raw.det.length) {
+          d.cell.styles.cellPadding = { top: 3, bottom: 4 + d.cell.raw.det.length * 4.6, left: 3, right: 3 };
+          d.cell.styles.fontStyle = 'bold';
+        } else if (d.section === 'body' && d.column.index === 1) {
+          d.cell.styles.fontStyle = 'bold';
+        }
+      },
+      didDrawCell: (d) => {
+        if (d.section !== 'body' || d.column.index !== 1 || !d.cell.raw.det) return;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(...SUAVE);
+        d.cell.raw.det.forEach((t, k) => {
+          doc.text(doc.splitTextToSize(t, d.cell.width - 6)[0], d.cell.x + 3, d.cell.y + 10 + k * 4.6);
+        });
+      },
     });
+
+    let yFim = doc.lastAutoTable.finalY + 8;
     if (c.obs) {
-      const y = doc.lastAutoTable.finalY + 8;
       doc.setFont('helvetica', 'bold');
-      doc.text('Observações', m, y);
+      doc.setFontSize(11);
+      doc.setTextColor(...AZUL);
+      doc.text('Observações', m, yFim);
       doc.setFont('helvetica', 'normal');
-      doc.text(doc.splitTextToSize(limpar(c.obs), larg - m * 2), m, y + 6);
+      doc.setFontSize(10.5);
+      doc.setTextColor(...TEXTO);
+      doc.text(doc.splitTextToSize(limpar(c.obs), larg - 2 * m), m, yFim + 6);
     }
-    const nome = 'Pedido-Fast-Shake-' + c.nome.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w]+/g, '-') + '.pdf';
-    const arquivo = new File([doc.output('blob')], nome, { type: 'application/pdf' });
-    if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
-      try { await navigator.share({ files: [arquivo], title: 'Pedido Fast Shake' }); return; } catch (e) { if (e.name === 'AbortError') return; }
-    }
-    const url = URL.createObjectURL(arquivo);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = nome;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    doc.setFontSize(8.5);
+    doc.setTextColor(...SUAVE);
+    doc.text('Pedido feito pelo cardápio digital da Fast Shake. Pagamento na ' + (c.modo === 'entrega' ? 'entrega.' : 'retirada.'), larg / 2, alt - 10, { align: 'center' });
+
+    const nome = `Pedido-${numero}-Fast-Shake.pdf`;
+    return new File([doc.output('blob')], nome, { type: 'application/pdf' });
   }
 
   desenharLista();

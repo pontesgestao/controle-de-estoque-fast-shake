@@ -142,7 +142,7 @@ textarea { min-height: 70px; resize: vertical; }
 .escolha-dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .escolha-dupla label { min-width: 0; padding: 6px 12px; text-align: left; line-height: 1.2; display: flex; align-items: center; justify-content: flex-start; gap: 8px; min-height: 48px; border: 2px solid var(--borda); border-radius: 12px; background: #fff; font-weight: 800; cursor: pointer; }
 .escolha-dupla label:has(input:checked) { border-color: var(--laranja); background: var(--laranja-claro); color: var(--laranja-escuro); }
-.escolha-dupla input { accent-color: var(--laranja); }
+.campo .escolha-dupla input { accent-color: var(--laranja); width: 18px; height: 18px; flex: 0 0 auto; padding: 0; border: 0; margin: 0; }
 
 .toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 60; background: var(--texto); color: #fff; padding: 10px 16px; border-radius: 12px; font-weight: 700; box-shadow: var(--sombra); max-width: calc(100vw - 32px); }
 .carregando { display: inline-block; width: 16px; height: 16px; border: 3px solid rgba(255,255,255,.5); border-top-color: #fff; border-radius: 50%; animation: gira .8s linear infinite; }
