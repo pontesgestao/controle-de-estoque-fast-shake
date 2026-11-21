@@ -4,10 +4,10 @@
   'use strict';
 
   const WHATSAPP_LOJA = '5543988501854';
-  const VERSAO = 5;
+  const VERSAO = 6;
   const TELEFONE_LOJA = '(43) 98850-1854';
   // Categorias escondidas por enquanto (apague da lista para voltar a mostrar).
-  const OCULTAS = ['Promoções', 'Casquinha e Cascão'];
+  const OCULTAS = ['Promoções', 'Casquinha e Cascão', 'Casquinhas para levar'];
   const CHAVE_SACOLA = 'fastshake-sacola-v1';
   const CHAVE_CLIENTE = 'fastshake-cliente-v1';
 
