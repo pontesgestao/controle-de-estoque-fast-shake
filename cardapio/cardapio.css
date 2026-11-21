@@ -1,0 +1,149 @@
+:root {
+  --laranja: #ED4400;
+  --laranja-escuro: #C23800;
+  --laranja-claro: #FFE3D3;
+  --azul: #273393;
+  --azul-claro: #E6E8F6;
+  --fundo: #FFF6EF;
+  --cartao: #FFFFFF;
+  --texto: #2A1A12;
+  --texto-suave: #7A6558;
+  --borda: #F0DDD0;
+  --verde: #1F8A4C;
+  --whatsapp: #1DA851;
+  --erro: #B42318;
+  --raio: 16px;
+  --sombra: 0 1px 2px rgba(80, 30, 0, .06), 0 4px 16px rgba(80, 30, 0, .06);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 130px; }
+body {
+  margin: 0; background: var(--fundo); color: var(--texto);
+  font: 16px/1.45 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+h1, h2, h3 { font-family: 'Fredoka', 'Nunito', sans-serif; font-weight: 600; line-height: 1.15; margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+[hidden] { display: none !important; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ---------- Topo ---------- */
+.capa { background: var(--laranja); color: #fff; padding: calc(16px + env(safe-area-inset-top)) 16px 18px; text-align: center; }
+.capa img { width: min(210px, 56vw); background: #fff; border-radius: 18px; padding: 8px 12px; display: block; margin: 0 auto 10px; }
+.capa h1 { font-size: 1.6rem; }
+.capa p { margin: 4px 0 0; opacity: .95; }
+
+.barra-fixa { position: sticky; top: 0; z-index: 20; background: var(--fundo); box-shadow: 0 2px 10px rgba(80,30,0,.08); }
+.barra-interna { max-width: 760px; margin: 0 auto; padding: 10px 16px 0; }
+.busca { width: 100%; height: 46px; border: 2px solid var(--borda); border-radius: 12px; background: #fff; padding: 0 14px; font-size: 16px; outline: none; }
+.busca:focus { border-color: var(--laranja); }
+.categorias { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; }
+.categorias::-webkit-scrollbar { display: none; }
+.categorias button {
+  flex: 0 0 auto; border: 2px solid var(--borda); background: #fff; color: var(--texto-suave);
+  border-radius: 99px; padding: 6px 14px; font-weight: 800; font-size: .88rem; white-space: nowrap;
+}
+.categorias button[aria-current="true"] { border-color: var(--laranja); background: var(--laranja-claro); color: var(--laranja-escuro); }
+
+/* ---------- Lista ---------- */
+main { max-width: 760px; margin: 0 auto; padding: 8px 16px 130px; }
+.secao { padding-top: 14px; }
+.secao h2 { font-size: 1.35rem; color: var(--azul); margin: 6px 0 10px; }
+.secao .dica { margin: -4px 0 10px; color: var(--texto-suave); font-size: .9rem; }
+.itens { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+@media (min-width: 620px) { .itens { grid-template-columns: 1fr 1fr; } }
+.produto {
+  background: var(--cartao); border-radius: 14px; box-shadow: var(--sombra); padding: 12px 12px 12px 14px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 2px solid transparent;
+}
+.produto.na-sacola { border-color: var(--laranja-claro); }
+.produto .info { min-width: 0; }
+.produto .nome { font-weight: 800; line-height: 1.25; }
+.produto .detalhe { font-size: .82rem; color: var(--texto-suave); }
+.produto .preco { font-family: 'Fredoka', sans-serif; font-weight: 600; color: var(--laranja-escuro); margin-top: 2px; }
+.btn-add {
+  flex-shrink: 0; min-width: 44px; height: 44px; border-radius: 12px; border: 0;
+  background: var(--laranja); color: #fff; font-weight: 800; font-size: 1.4rem; line-height: 1; padding: 0 12px;
+  box-shadow: 0 3px 0 var(--laranja-escuro);
+}
+.btn-add.texto { font-size: .9rem; }
+.qtd { flex-shrink: 0; display: flex; align-items: center; border: 2px solid var(--laranja-claro); border-radius: 12px; overflow: hidden; background: #fff; }
+.qtd button { width: 40px; height: 40px; border: 0; background: var(--laranja-claro); color: var(--laranja-escuro); font-size: 1.3rem; font-weight: 800; }
+.qtd span { min-width: 34px; text-align: center; font-weight: 800; }
+.vazio { text-align: center; color: var(--texto-suave); padding: 40px 12px; }
+
+/* ---------- Barra da sacola ---------- */
+.barra-sacola {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: rgba(255,246,239,.96);
+  backdrop-filter: blur(8px); border-top: 1px solid var(--borda);
+}
+.barra-sacola button {
+  display: flex; width: 100%; max-width: 728px; margin: 0 auto; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 56px; padding: 0 18px; border: 0; border-radius: 14px; background: var(--azul); color: #fff;
+  font-weight: 800; font-size: 1.02rem; box-shadow: 0 4px 0 #1A2366;
+}
+.barra-sacola .contagem { background: rgba(255,255,255,.2); border-radius: 99px; padding: 2px 10px; font-size: .9rem; }
+
+/* ---------- Janelas (opções e sacola) ---------- */
+dialog.folha {
+  border: 0; padding: 0; margin: auto auto 0; width: 100%; max-width: 640px; max-height: 92dvh;
+  border-radius: 22px 22px 0 0; background: var(--fundo); color: var(--texto); box-shadow: 0 -10px 40px rgba(0,0,0,.2);
+}
+@media (min-width: 680px) { dialog.folha { margin: auto; border-radius: 22px; } }
+dialog.folha::backdrop { background: rgba(42,26,18,.5); }
+.folha-conteudo { display: flex; flex-direction: column; max-height: 92dvh; }
+.folha-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 18px 10px; }
+.folha-topo h2 { font-size: 1.3rem; color: var(--azul); }
+.folha-topo .preco { color: var(--laranja-escuro); font-weight: 800; }
+.fechar { border: 0; background: var(--azul-claro); color: var(--azul); width: 38px; height: 38px; border-radius: 50%; font-size: 1.1rem; font-weight: 800; flex-shrink: 0; }
+.folha-corpo { overflow-y: auto; padding: 0 18px 12px; display: flex; flex-direction: column; gap: 14px; }
+.folha-rodape { padding: 12px 18px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--borda); display: flex; flex-direction: column; gap: 10px; background: #fff; }
+
+.grupo { background: #fff; border-radius: 14px; padding: 12px 14px; box-shadow: var(--sombra); }
+.grupo h3 { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 1rem; display: flex; justify-content: space-between; gap: 8px; }
+.grupo h3 small { font-weight: 700; font-size: .78rem; color: var(--texto-suave); white-space: nowrap; }
+.grupo h3 .obrigatorio { color: var(--laranja-escuro); }
+.opcoes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+.opcoes.com-preco { grid-template-columns: 1fr; }
+.opcao { min-width: 0; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 2px solid var(--borda); border-radius: 10px; font-size: .92rem; font-weight: 700; cursor: pointer; }
+.opcao input { accent-color: var(--laranja); width: 18px; height: 18px; flex-shrink: 0; }
+.opcao:has(input:checked) { border-color: var(--laranja); background: var(--laranja-claro); }
+.opcao .extra { margin-left: auto; color: var(--texto-suave); font-size: .8rem; white-space: nowrap; }
+textarea, .campo input, .campo select {
+  width: 100%; border: 2px solid var(--borda); border-radius: 12px; padding: 10px 12px; background: #fff; font-size: 16px; outline: none;
+}
+textarea:focus, .campo input:focus, .campo select:focus { border-color: var(--laranja); }
+textarea { min-height: 70px; resize: vertical; }
+.campo { display: flex; flex-direction: column; gap: 6px; }
+.campo label, .campo .rotulo { font-weight: 800; font-size: .92rem; }
+.erro { color: var(--erro); font-weight: 700; font-size: .88rem; margin: 0; }
+.linha-qtd { display: flex; align-items: center; gap: 12px; }
+.linha-qtd .qtd { border-color: var(--borda); }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 0 18px; border-radius: 14px; border: 0; font-weight: 800; font-size: 1rem; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.btn-primario { background: var(--laranja); color: #fff; box-shadow: 0 4px 0 var(--laranja-escuro); flex: 1; }
+.btn-whatsapp { background: var(--whatsapp); color: #fff; box-shadow: 0 4px 0 #137A3A; width: 100%; }
+.btn-texto { background: none; color: var(--azul); text-decoration: underline; min-height: 40px; }
+
+/* Sacola */
+.item-sacola { background: #fff; border-radius: 14px; padding: 12px 14px; box-shadow: var(--sombra); display: flex; flex-direction: column; gap: 6px; }
+.item-sacola .cab { display: flex; justify-content: space-between; gap: 10px; font-weight: 800; }
+.item-sacola .escolhas { font-size: .85rem; color: var(--texto-suave); }
+.item-sacola .acoes { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.item-sacola .remover { border: 0; background: none; color: var(--erro); text-decoration: underline; font-weight: 700; font-size: .85rem; }
+.total { display: flex; justify-content: space-between; font-family: 'Fredoka', sans-serif; font-size: 1.3rem; font-weight: 600; }
+.aviso { font-size: .85rem; color: var(--texto-suave); margin: 0; }
+.escolha-dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.escolha-dupla label { min-width: 0; padding: 6px 12px; text-align: left; line-height: 1.2; display: flex; align-items: center; justify-content: flex-start; gap: 8px; min-height: 48px; border: 2px solid var(--borda); border-radius: 12px; background: #fff; font-weight: 800; cursor: pointer; }
+.escolha-dupla label:has(input:checked) { border-color: var(--laranja); background: var(--laranja-claro); color: var(--laranja-escuro); }
+.escolha-dupla input { accent-color: var(--laranja); }
+
+.toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 60; background: var(--texto); color: #fff; padding: 10px 16px; border-radius: 12px; font-weight: 700; box-shadow: var(--sombra); max-width: calc(100vw - 32px); }
+.carregando { display: inline-block; width: 16px; height: 16px; border: 3px solid rgba(255,255,255,.5); border-top-color: #fff; border-radius: 50%; animation: gira .8s linear infinite; }
+@keyframes gira { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } html { scroll-behavior: auto; } }

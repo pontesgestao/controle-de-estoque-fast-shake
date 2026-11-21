@@ -69,3 +69,10 @@ js/pdf.js             PDF da contagem e compartilhamento no WhatsApp
 apps-script/Codigo.gs código que grava na planilha
 img/                  logo e ícones
 ```
+
+## Cardápio interativo (pedidos pelo WhatsApp)
+
+Página para os clientes da Fast Shake montarem o pedido e enviarem pelo WhatsApp da loja: **https://pontesgestao.github.io/controle-de-estoque-fast-shake/cardapio/**
+
+- Os produtos e preços vêm da planilha exportada do PDV. Para atualizar, gere de novo com `python3 cardapio/gerar_dados.py planilha.xlsx` (cria `cardapio/dados.js`).
+- O número da loja está em `cardapio/cardapio.js` (`WHATSAPP_LOJA`). As opções de sabor, cobertura, acompanhamentos e adicionais também ficam nesse arquivo.
